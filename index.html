@@ -78,9 +78,9 @@ function initLevel() {
 }
 
 function spawnBird() {
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 40, {
         density: 0.006,
-        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
+        render: { sprite: { texture: charImg, xScale: 0.4, yScale: 0.4 } }
     });
     
     sling = Constraint.create({
