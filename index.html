@@ -2,65 +2,26 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Angry Fat - Pro Edition</title>
+    <title>Angry Fat - Big Character</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        /* Căn giữa toàn bộ khung game */
         body { 
-            margin: 0; 
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #1a1a1a; 
-            font-family: 'Segoe UI', Arial, sans-serif;
-            overflow: hidden;
+            margin: 0; display: flex; justify-content: center; align-items: center; 
+            height: 100vh; background: #1a1a1a; font-family: sans-serif; overflow: hidden;
         }
-        canvas { 
-            border: 4px solid #333;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        }
-        #ui { 
-            position: absolute; 
-            top: 20px; 
-            left: 20px; 
-            color: white; 
-            pointer-events: none; 
-            text-shadow: 2px 2px 4px #000; 
-        }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
         .btn-reset {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            z-index: 100;
-        }
-        .btn-reset:hover { background: #c0392b; }
-        #msg { 
-            position: absolute; 
-            color: gold; 
-            font-size: 40px; 
-            display: none; 
-            font-weight: bold;
-            text-shadow: 3px 3px 5px #000;
+            position: absolute; top: 20px; right: 20px; padding: 10px 20px;
+            background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <button class="btn-reset" onclick="initLevel()">CHƠI LẠI (RESET)</button>
+    <button class="btn-reset" onclick="initLevel()">CHƠI LẠI</button>
     <div id="ui">
-        <h1 style="margin:0">MÀN: <span id="lvl">1</span></h1>
+        <h1>MÀN: <span id="lvl">1</span></h1>
         <p>Lượt bắn: <span id="birds-left">3</span>/3</p>
     </div>
-    <div id="msg">CHIẾN THẮNG!</div>
 
 <script>
 const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite } = Matter;
@@ -80,15 +41,12 @@ let shotsUsed = 0;
 let currentBird = null;
 let sling = null;
 let targetGem = null;
-const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200';
+
+// HÌNH ẢNH CỦA BẠN
+const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
 const slingPos = { x: 200, y: 400 };
 
-// Mặt đất
-const ground = Bodies.rectangle(500, 580, 1000, 40, { 
-    isStatic: true, 
-    friction: 1,
-    render: { fillStyle: '#2ecc71' } 
-});
+const ground = Bodies.rectangle(500, 580, 1000, 40, { isStatic: true, render: { fillStyle: '#2ecc71' } });
 World.add(engine.world, ground);
 
 function initLevel() {
@@ -99,23 +57,18 @@ function initLevel() {
     shotsUsed = 0;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
-    document.getElementById('msg').style.display = 'none';
 
-    // Xây tháp vững chắc hơn
-    const towerX = 650 + Math.random() * 150;
-    const layers = 2 + Math.min(level, 4);
+    const towerX = 700;
+    const layers = 3;
     for (let i = 0; i < layers; i++) {
         const y = 530 - i * 80;
-        const w1 = Bodies.rectangle(towerX, y, 15, 70, { friction: 0.5, render: { fillStyle: '#795548' } });
-        const w2 = Bodies.rectangle(towerX + 70, y, 15, 70, { friction: 0.5, render: { fillStyle: '#795548' } });
-        const roof = Bodies.rectangle(towerX + 35, y - 45, 110, 15, { friction: 0.5, render: { fillStyle: '#5d4037' } });
+        const w1 = Bodies.rectangle(towerX, y, 15, 70, { render: { fillStyle: '#795548' } });
+        const w2 = Bodies.rectangle(towerX + 70, y, 15, 70, { render: { fillStyle: '#795548' } });
+        const roof = Bodies.rectangle(towerX + 35, y - 45, 120, 15, { render: { fillStyle: '#5d4037' } });
         World.add(engine.world, [w1, w2, roof]);
         
         if (i === layers - 1) {
-            targetGem = Bodies.circle(towerX + 35, y - 75, 18, { 
-                label: 'gem', 
-                render: { fillStyle: '#f1c40f', strokeStyle: '#fff', lineWidth: 2 } 
-            });
+            targetGem = Bodies.circle(towerX + 35, y - 75, 20, { label: 'gem', render: { fillStyle: '#f1c40f' } });
             World.add(engine.world, targetGem);
         }
     }
@@ -123,17 +76,18 @@ function initLevel() {
 }
 
 function spawnBird() {
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.008,
-        frictionAir: 0.01,
-        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
+    // TĂNG KÍCH THƯỚC Ở ĐÂY: Bán kính 40, Scale 0.45
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 40, {
+        density: 0.01,
+        render: { 
+            sprite: { texture: charImg, xScale: 0.45, yScale: 0.45 } 
+        }
     });
     
     sling = Constraint.create({
         pointA: slingPos,
         bodyB: currentBird,
         stiffness: 0.1,
-        damping: 0.1,
         render: { strokeStyle: '#34495e', lineWidth: 5 }
     });
     World.add(engine.world, [currentBird, sling]);
@@ -149,24 +103,17 @@ let firing = false;
 Events.on(mouseConstraint, 'enddrag', (e) => { if (e.body === currentBird) firing = true; });
 
 Events.on(engine, 'afterUpdate', () => {
-    if (firing && currentBird.position.x > slingPos.x + 10) {
-        setTimeout(() => { sling.bodyB = null; }, 20);
+    if (firing && currentBird.position.x > slingPos.x + 20) {
+        setTimeout(() => { sling.bodyB = null; }, 50);
         firing = false;
         shotsUsed++;
         document.getElementById('birds-left').innerText = 3 - shotsUsed;
-
-        setTimeout(() => {
-            if (shotsUsed < 3 && level > 0) spawnBird();
-            else {
-                setTimeout(() => { if(targetGem) { alert("Hết lượt! Thử lại nhé."); initLevel(); } }, 3000);
-            }
-        }, 3000);
+        setTimeout(() => { if (shotsUsed < 3) spawnBird(); }, 3000);
     }
-
     if (targetGem && targetGem.position.y > 540) {
         targetGem = null;
-        document.getElementById('msg').style.display = 'block';
-        setTimeout(() => { level++; initLevel(); }, 1500);
+        level++;
+        setTimeout(initLevel, 1000);
     }
 });
 
