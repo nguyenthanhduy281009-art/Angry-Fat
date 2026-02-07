@@ -2,123 +2,142 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Angry Fat - Premium Edition</title>
+    <title>Angry Fat - Infinite Levels</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
-        canvas { display: block; margin: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; text-shadow: 2px 2px 4px #000; }
+        #level-up { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: gold; font-size: 50px; display: none; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h1 style="margin:0">ANGRY FAT</h1>
-        <p>Kéo và thả để bắn | Lượt còn lại: <span id="birds-left">3</span></p>
+        <h1 style="margin:0">LEVEL: <span id="lvl">1</span></h1>
+        <p>Lượt bắn: <span id="birds-left">3</span>/3</p>
+        <p>Mục tiêu: Đưa viên ngọc vàng chạm đất!</p>
     </div>
+    <div id="level-up">THẮNG RỒI! QUA MÀN...</div>
 
 <script>
-const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Composite, Events } = Matter;
+const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite } = Matter;
 
 const engine = Engine.create();
 const render = Render.create({
     element: document.body,
     engine: engine,
-    options: {
-        width: 1200,
-        height: 600,
-        wireframes: false,
-        background: 'linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%)'
-    }
+    options: { width: 1200, height: 600, wireframes: false, background: '#87CEEB' }
 });
 
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-// 1. Mặt đất và tường ngăn
-const ground = Bodies.rectangle(600, 590, 1200, 40, { isStatic: true, render: { fillStyle: '#388E3C' } });
+let level = 1;
+let shotsUsed = 0;
+let currentBird = null;
+let sling = null;
+let targetGem = null;
+const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200';
+const slingPos = { x: 200, y: 450 };
+
+// Tạo mặt đất
+const ground = Bodies.rectangle(600, 590, 1200, 40, { isStatic: true, label: 'ground', render: { fillStyle: '#388E3C' } });
 World.add(engine.world, ground);
 
-// 2. Cấu hình nhân vật
-const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200';
-let birds = [];
-let currentBirdIndex = 0;
-const slingPos = { x: 250, y: 450 };
+function initLevel() {
+    // Xóa vật thể cũ (trừ mặt đất)
+    const allBodies = Composite.allBodies(engine.world);
+    allBodies.forEach(body => { if(body !== ground) World.remove(engine.world, body); });
+    if(sling) World.remove(engine.world, sling);
 
-function createBird() {
-    const bird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.006,
-        restitution: 0.5,
-        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
-    });
-    return bird;
-}
+    shotsUsed = 0;
+    document.getElementById('birds-left').innerText = 3;
+    document.getElementById('lvl').innerText = level;
 
-// Khởi tạo chim đầu tiên
-let currentBird = createBird();
-World.add(engine.world, currentBird);
-
-// 3. Ná cao su (Sling)
-const sling = Constraint.create({
-    pointA: slingPos,
-    bodyB: currentBird,
-    stiffness: 0.1,
-    length: 0.1,
-    render: { strokeStyle: '#5D4037', lineWidth: 8 }
-});
-World.add(engine.world, sling);
-
-// 4. Cấu trúc lâu đài (Đẹp hơn)
-function createStructure(x) {
-    const boxes = [];
-    for (let i = 0; i < 4; i++) { // Tầng
-        const width = 40, height = 80;
-        boxes.push(Bodies.rectangle(x, 540 - i * 90, width, height, { render: { fillStyle: '#795548' } }));
-        boxes.push(Bodies.rectangle(x + 80, 540 - i * 90, width, height, { render: { fillStyle: '#795548' } }));
-        boxes.push(Bodies.rectangle(x + 40, 490 - i * 90, 140, 20, { render: { fillStyle: '#A1887F' } }));
-        // Thêm "Lợn" ở giữa
-        if(i % 2 === 0) {
-            boxes.push(Bodies.circle(x + 40, 540 - i * 90, 20, { render: { fillStyle: '#4CAF50' } }));
+    // 1. Tạo tháp ngẫu nhiên
+    const towerX = 700 + Math.random() * 300;
+    const towerLayers = 3 + Math.min(level, 5); // Khó dần
+    for (let i = 0; i < towerLayers; i++) {
+        const y = 540 - i * 85;
+        const wood1 = Bodies.rectangle(towerX, y, 20, 80, { render: { fillStyle: '#795548' } });
+        const wood2 = Bodies.rectangle(towerX + 80, y, 20, 80, { render: { fillStyle: '#795548' } });
+        const roof = Bodies.rectangle(towerX + 40, y - 50, 120, 20, { render: { fillStyle: '#A1887F' } });
+        World.add(engine.world, [wood1, wood2, roof]);
+        
+        // Viên ngọc trên đỉnh
+        if (i === towerLayers - 1) {
+            targetGem = Bodies.circle(towerX + 40, y - 80, 15, { 
+                label: 'gem', 
+                restitution: 0.5,
+                render: { fillStyle: '#FFD700', strokeStyle: '#FFF', lineWidth: 3 } 
+            });
+            World.add(engine.world, targetGem);
         }
     }
-    return boxes;
-}
-World.add(engine.world, createStructure(800));
 
-// 5. Điều khiển
-const mouse = Mouse.create(render.canvas);
+    spawnBird();
+}
+
+function spawnBird() {
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
+        density: 0.006,
+        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
+    });
+    
+    sling = Constraint.create({
+        pointA: slingPos,
+        bodyB: currentBird,
+        stiffness: 0.1,
+        render: { strokeStyle: '#5D4037', lineWidth: 6 }
+    });
+    
+    World.add(engine.world, [currentBird, sling]);
+}
+
+// Điều khiển chuột
 const mouseConstraint = MouseConstraint.create(engine, {
-    mouse: mouse,
+    mouse: Mouse.create(render.canvas),
     constraint: { stiffness: 0.1, render: { visible: false } }
 });
 World.add(engine.world, mouseConstraint);
 
-// Logic bắn và hồi nhân vật
-let firing = false;
+let isFiring = false;
 Events.on(mouseConstraint, 'enddrag', (e) => {
-    if (e.body === currentBird) firing = true;
+    if (e.body === currentBird) isFiring = true;
 });
 
 Events.on(engine, 'afterUpdate', () => {
-    if (firing && currentBird.position.x > slingPos.x + 20) {
-        // Thả chim cũ
+    // Logic bắn
+    if (isFiring && currentBird.position.x > slingPos.x + 20) {
         sling.bodyB = null;
-        firing = false;
-        
-        // Chờ 3 giây để nạp chim mới
+        isFiring = false;
+        shotsUsed++;
+        document.getElementById('birds-left').innerText = 3 - shotsUsed;
+
         setTimeout(() => {
-            if (currentBirdIndex < 2) {
-                currentBirdIndex++;
-                document.getElementById('birds-left').innerText = 3 - currentBirdIndex;
-                
-                currentBird = createBird();
-                World.add(engine.world, currentBird);
-                sling.bodyB = currentBird;
-            } else {
-                alert("Hết lượt bắn! F5 để chơi lại.");
+            if (shotsUsed < 3) spawnBird();
+            else if (level > 0) { // Hết lượt
+                setTimeout(() => {
+                    alert("Game Over! Bạn đã hết lượt bắn.");
+                    level = 1;
+                    initLevel();
+                }, 2000);
             }
         }, 3000);
     }
+
+    // Kiểm tra viên ngọc chạm đất
+    if (targetGem && targetGem.position.y > 550) {
+        targetGem = null;
+        document.getElementById('level-up').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('level-up').style.display = 'none';
+            level++;
+            initLevel();
+        }, 1500);
+    }
 });
+
+initLevel();
 </script>
 </body>
 </html>
