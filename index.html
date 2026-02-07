@@ -2,21 +2,65 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Angry Fat - Infinite Levels</title>
+    <title>Angry Fat - Pro Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; text-shadow: 2px 2px 4px #000; }
-        #level-up { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: gold; font-size: 50px; display: none; }
+        /* Căn giữa toàn bộ khung game */
+        body { 
+            margin: 0; 
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #1a1a1a; 
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+        canvas { 
+            border: 4px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        #ui { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: white; 
+            pointer-events: none; 
+            text-shadow: 2px 2px 4px #000; 
+        }
+        .btn-reset {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 100;
+        }
+        .btn-reset:hover { background: #c0392b; }
+        #msg { 
+            position: absolute; 
+            color: gold; 
+            font-size: 40px; 
+            display: none; 
+            font-weight: bold;
+            text-shadow: 3px 3px 5px #000;
+        }
     </style>
 </head>
 <body>
+    <button class="btn-reset" onclick="initLevel()">CHƠI LẠI (RESET)</button>
     <div id="ui">
-        <h1 style="margin:0">LEVEL: <span id="lvl">1</span></h1>
+        <h1 style="margin:0">MÀN: <span id="lvl">1</span></h1>
         <p>Lượt bắn: <span id="birds-left">3</span>/3</p>
-        <p>Mục tiêu: Đưa viên ngọc vàng chạm đất!</p>
     </div>
-    <div id="level-up">THẮNG RỒI! QUA MÀN...</div>
+    <div id="msg">CHIẾN THẮNG!</div>
 
 <script>
 const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite } = Matter;
@@ -25,7 +69,7 @@ const engine = Engine.create();
 const render = Render.create({
     element: document.body,
     engine: engine,
-    options: { width: 1200, height: 600, wireframes: false, background: '#87CEEB' }
+    options: { width: 1000, height: 600, wireframes: false, background: '#87CEEB' }
 });
 
 Render.run(render);
@@ -37,14 +81,17 @@ let currentBird = null;
 let sling = null;
 let targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200';
-const slingPos = { x: 200, y: 450 };
+const slingPos = { x: 200, y: 400 };
 
-// Tạo mặt đất
-const ground = Bodies.rectangle(600, 590, 1200, 40, { isStatic: true, label: 'ground', render: { fillStyle: '#388E3C' } });
+// Mặt đất
+const ground = Bodies.rectangle(500, 580, 1000, 40, { 
+    isStatic: true, 
+    friction: 1,
+    render: { fillStyle: '#2ecc71' } 
+});
 World.add(engine.world, ground);
 
 function initLevel() {
-    // Xóa vật thể cũ (trừ mặt đất)
     const allBodies = Composite.allBodies(engine.world);
     allBodies.forEach(body => { if(body !== ground) World.remove(engine.world, body); });
     if(sling) World.remove(engine.world, sling);
@@ -52,88 +99,74 @@ function initLevel() {
     shotsUsed = 0;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
+    document.getElementById('msg').style.display = 'none';
 
-    // 1. Tạo tháp ngẫu nhiên
-    const towerX = 700 + Math.random() * 300;
-    const towerLayers = 3 + Math.min(level, 5); // Khó dần
-    for (let i = 0; i < towerLayers; i++) {
-        const y = 540 - i * 85;
-        const wood1 = Bodies.rectangle(towerX, y, 20, 80, { render: { fillStyle: '#795548' } });
-        const wood2 = Bodies.rectangle(towerX + 80, y, 20, 80, { render: { fillStyle: '#795548' } });
-        const roof = Bodies.rectangle(towerX + 40, y - 50, 120, 20, { render: { fillStyle: '#A1887F' } });
-        World.add(engine.world, [wood1, wood2, roof]);
+    // Xây tháp vững chắc hơn
+    const towerX = 650 + Math.random() * 150;
+    const layers = 2 + Math.min(level, 4);
+    for (let i = 0; i < layers; i++) {
+        const y = 530 - i * 80;
+        const w1 = Bodies.rectangle(towerX, y, 15, 70, { friction: 0.5, render: { fillStyle: '#795548' } });
+        const w2 = Bodies.rectangle(towerX + 70, y, 15, 70, { friction: 0.5, render: { fillStyle: '#795548' } });
+        const roof = Bodies.rectangle(towerX + 35, y - 45, 110, 15, { friction: 0.5, render: { fillStyle: '#5d4037' } });
+        World.add(engine.world, [w1, w2, roof]);
         
-        // Viên ngọc trên đỉnh
-        if (i === towerLayers - 1) {
-            targetGem = Bodies.circle(towerX + 40, y - 80, 15, { 
+        if (i === layers - 1) {
+            targetGem = Bodies.circle(towerX + 35, y - 75, 18, { 
                 label: 'gem', 
-                restitution: 0.5,
-                render: { fillStyle: '#FFD700', strokeStyle: '#FFF', lineWidth: 3 } 
+                render: { fillStyle: '#f1c40f', strokeStyle: '#fff', lineWidth: 2 } 
             });
             World.add(engine.world, targetGem);
         }
     }
-
     spawnBird();
 }
 
 function spawnBird() {
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 40, {
-        density: 0.006,
-        render: { sprite: { texture: charImg, xScale: 0.4, yScale: 0.4 } }
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
+        density: 0.008,
+        frictionAir: 0.01,
+        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
     });
     
     sling = Constraint.create({
         pointA: slingPos,
         bodyB: currentBird,
         stiffness: 0.1,
-        render: { strokeStyle: '#5D4037', lineWidth: 6 }
+        damping: 0.1,
+        render: { strokeStyle: '#34495e', lineWidth: 5 }
     });
-    
     World.add(engine.world, [currentBird, sling]);
 }
 
-// Điều khiển chuột
 const mouseConstraint = MouseConstraint.create(engine, {
     mouse: Mouse.create(render.canvas),
     constraint: { stiffness: 0.1, render: { visible: false } }
 });
 World.add(engine.world, mouseConstraint);
 
-let isFiring = false;
-Events.on(mouseConstraint, 'enddrag', (e) => {
-    if (e.body === currentBird) isFiring = true;
-});
+let firing = false;
+Events.on(mouseConstraint, 'enddrag', (e) => { if (e.body === currentBird) firing = true; });
 
 Events.on(engine, 'afterUpdate', () => {
-    // Logic bắn
-    if (isFiring && currentBird.position.x > slingPos.x + 20) {
-        sling.bodyB = null;
-        isFiring = false;
+    if (firing && currentBird.position.x > slingPos.x + 10) {
+        setTimeout(() => { sling.bodyB = null; }, 20);
+        firing = false;
         shotsUsed++;
         document.getElementById('birds-left').innerText = 3 - shotsUsed;
 
         setTimeout(() => {
-            if (shotsUsed < 3) spawnBird();
-            else if (level > 0) { // Hết lượt
-                setTimeout(() => {
-                    alert("Game Over! Bạn đã hết lượt bắn.");
-                    level = 1;
-                    initLevel();
-                }, 2000);
+            if (shotsUsed < 3 && level > 0) spawnBird();
+            else {
+                setTimeout(() => { if(targetGem) { alert("Hết lượt! Thử lại nhé."); initLevel(); } }, 3000);
             }
         }, 3000);
     }
 
-    // Kiểm tra viên ngọc chạm đất
-    if (targetGem && targetGem.position.y > 550) {
+    if (targetGem && targetGem.position.y > 540) {
         targetGem = null;
-        document.getElementById('level-up').style.display = 'block';
-        setTimeout(() => {
-            document.getElementById('level-up').style.display = 'none';
-            level++;
-            initLevel();
-        }, 1500);
+        document.getElementById('msg').style.display = 'block';
+        setTimeout(() => { level++; initLevel(); }, 1500);
     }
 });
 
