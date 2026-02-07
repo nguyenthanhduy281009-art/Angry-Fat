@@ -2,8 +2,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Angry Fat Mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Angry Fat - Fixed Mouse</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body { 
@@ -11,22 +11,19 @@
             height: 100vh; background: #1a1a1a; font-family: sans-serif; overflow: hidden; 
             touch-action: none;
         }
-        canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        canvas { max-width: 100vw; max-height: 100vh; object-fit: contain; }
         #ui { position: absolute; top: 10px; left: 15px; color: white; pointer-events: none; z-index: 10; }
         .btn-reset {
-            position: absolute; top: 10px; right: 15px; padding: 12px 20px;
-            background: #e74c3c; color: white; border: none; border-radius: 8px; 
+            position: absolute; top: 10px; right: 15px; padding: 10px 15px;
+            background: #e74c3c; color: white; border: none; border-radius: 5px; 
             cursor: pointer; font-weight: bold; z-index: 20;
         }
-        h1 { margin: 0; font-size: 1.2rem; }
-        p { margin: 2px 0; font-size: 0.9rem; }
     </style>
 </head>
 <body>
     <button class="btn-reset" onclick="initLevel()">RESET</button>
     <div id="ui">
-        <h1>LEVEL: <span id="lvl">1</span></h1>
-        <p>Lượt: <span id="birds-left">3</span>/3</p>
+        <h1>LV: <span id="lvl">1</span> | Lượt: <span id="birds-left">3</span></h1>
     </div>
 
 <script>
@@ -42,12 +39,15 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
+// Định nghĩa các nhóm va chạm
+const BIRD_CATEGORY = 0x0002;
+const OBSTACLE_CATEGORY = 0x0004;
+
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
-const slingPos = { x: 180, y: 420 };
+const slingPos = { x: 200, y: 450 };
 
-// Mặt đất cực kỳ ma sát
-const ground = Bodies.rectangle(500, 580, 1000, 40, { isStatic: true, friction: 1, render: { fillStyle: '#2ecc71' } });
+const ground = Bodies.rectangle(500, 580, 1000, 40, { isStatic: true, render: { fillStyle: '#2ecc71' } });
 World.add(engine.world, ground);
 
 function initLevel() {
@@ -59,24 +59,25 @@ function initLevel() {
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
 
-    // Xây tháp VỮNG CHẮC (Căn tọa độ chuẩn)
-    const tx = 700 + (Math.random() * 100);
+    const tx = 750;
     const layers = 3;
     for (let i = 0; i < layers; i++) {
-        const h = 70, w = 15, gap = 70;
-        const y = 540 - (i * (h + 15)); // Khoảng cách giữa các tầng
-        
-        const woodOptions = { friction: 1, frictionStatic: 10, slop: 0.5 };
-        const w1 = Bodies.rectangle(tx, y, w, h, woodOptions);
-        const w2 = Bodies.rectangle(tx + gap, y, w, h, woodOptions);
-        const roof = Bodies.rectangle(tx + gap/2, y - (h/2 + 5), gap + 40, 15, woodOptions);
-        
+        const y = 540 - (i * 85);
+        // Gán category để chuột không chạm vào được
+        const opt = { 
+            friction: 1, 
+            collisionFilter: { category: OBSTACLE_CATEGORY } 
+        };
+        const w1 = Bodies.rectangle(tx, y, 15, 75, opt);
+        const w2 = Bodies.rectangle(tx + 70, y, 15, 75, opt);
+        const roof = Bodies.rectangle(tx + 35, y - 45, 120, 15, opt);
         World.add(engine.world, [w1, w2, roof]);
         
         if (i === layers - 1) {
-            targetGem = Bodies.circle(tx + gap/2, y - 100, 22, { 
-                label: 'gem', density: 0.001, friction: 1,
-                render: { fillStyle: '#f1c40f', strokeStyle: '#fff', lineWidth: 3 } 
+            targetGem = Bodies.circle(tx + 35, y - 80, 20, { 
+                label: 'gem', 
+                collisionFilter: { category: OBSTACLE_CATEGORY },
+                render: { fillStyle: '#f1c40f' } 
             });
             World.add(engine.world, targetGem);
         }
@@ -85,24 +86,28 @@ function initLevel() {
 }
 
 function spawnBird() {
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 40, {
-        density: 0.015, frictionAir: 0.01,
-        render: { sprite: { texture: charImg, xScale: 0.45, yScale: 0.45 } }
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 30, {
+        density: 0.01,
+        collisionFilter: { category: BIRD_CATEGORY }, // Nhóm chim
+        render: { sprite: { texture: charImg, xScale: 0.32, yScale: 0.32 } }
     });
     
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, stiffness: 0.15, length: 2,
-        render: { strokeStyle: '#4a2c02', lineWidth: 5 }
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 2,
+        render: { strokeStyle: '#4a2c02', lineWidth: 4 }
     });
     World.add(engine.world, [currentBird, sling]);
 }
 
-// Hỗ trợ cảm ứng điện thoại
 const mouse = Mouse.create(render.canvas);
 const mouseConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
     constraint: { stiffness: 0.2, render: { visible: false } }
 });
+
+// QUAN TRỌNG: Chỉ cho phép chuột tương tác với nhóm BIRD_CATEGORY
+mouseConstraint.collisionFilter.mask = BIRD_CATEGORY;
+
 World.add(engine.world, mouseConstraint);
 render.mouse = mouse;
 
@@ -110,17 +115,17 @@ let firing = false;
 Events.on(mouseConstraint, 'enddrag', (e) => { if (e.body === currentBird) firing = true; });
 
 Events.on(engine, 'afterUpdate', () => {
-    if (firing && currentBird.position.x > slingPos.x + 20) {
+    if (firing && currentBird.position.x > slingPos.x + 15) {
         World.remove(engine.world, sling);
         firing = false;
         shotsUsed++;
         document.getElementById('birds-left').innerText = 3 - shotsUsed;
-        setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3500);
+        setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3000);
     }
-    if (targetGem && targetGem.position.y > 540) {
+    if (targetGem && targetGem.position.y > 545) {
         targetGem = null;
         level++;
-        setTimeout(initLevel, 1200);
+        setTimeout(initLevel, 1000);
     }
 });
 
