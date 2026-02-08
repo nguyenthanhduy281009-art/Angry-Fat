@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Pro Map</title>
+    <title>Angry Fat - Pro Sound & Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; touch-action: none; font-family: sans-serif; }
@@ -32,12 +32,18 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
+// --- ÂM THANH ---
+const audioSling = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+const audioFly = new Audio('https://assets.mixkit.co/active_storage/sfx/2012/2012-preview.mp3');
+const audioHit = new Audio('https://assets.mixkit.co/active_storage/sfx/1044/1044-preview.mp3');
+
+function playS(a) { a.currentTime = 0; a.play().catch(()=>{}); }
+
 const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
 const slingPos = { x: w * 0.2, y: h * 0.7 };
 
-// Mặt đất
 const ground = Bodies.rectangle(w/2, h - 10, w, 60, { isStatic: true, friction: 1, render: { fillStyle: '#388e3c' } });
 World.add(engine.world, ground);
 
@@ -48,24 +54,21 @@ function initLevel() {
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
     
-    // ĐA DẠNG MAP: Tạo tháp với vị trí ngọc ngẫu nhiên
     const tx = w * 0.6 + (Math.random() * w * 0.2);
     const layers = 3;
-    const gemLayer = Math.floor(Math.random() * layers); // Ngọc nằm ngẫu nhiên ở tầng nào
+    const gemLayer = Math.floor(Math.random() * layers);
 
     for (let i = 0; i < layers; i++) {
         const y = h - 80 - (i * 90);
-        const opt = { friction: 2, density: 0.3, frictionStatic: 15, collisionFilter: { category: OBST_CAT } };
-        
-        const w1 = Bodies.rectangle(tx, y, 20, 80, opt);
-        const w2 = Bodies.rectangle(tx + 90, y, 20, 80, opt);
-        const roof = Bodies.rectangle(tx + 45, y - 50, 160, 20, opt);
-        World.add(engine.world, [w1, w2, roof]);
-
+        const opt = { friction: 2, density: 0.4, frictionStatic: 15, collisionFilter: { category: OBST_CAT } };
+        World.add(engine.world, [
+            Bodies.rectangle(tx, y, 20, 80, opt),
+            Bodies.rectangle(tx + 90, y, 20, 80, opt),
+            Bodies.rectangle(tx + 45, y - 50, 160, 20, opt)
+        ]);
         if (i === gemLayer) {
             targetGem = Bodies.circle(tx + 45, y - 20, 20, { 
-                label: 'gem', 
-                collisionFilter: { category: OBST_CAT }, 
+                label: 'gem', collisionFilter: { category: OBST_CAT }, 
                 render: { fillStyle: '#ffd700', strokeStyle: '#fff', lineWidth: 3 } 
             });
             World.add(engine.world, targetGem);
@@ -76,7 +79,7 @@ function initLevel() {
 
 function spawnBird() {
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 20, {
-        density: 0.04, frictionAir: 0.01, restitution: 0.3,
+        density: 0.05, frictionAir: 0.01, restitution: 0.3,
         collisionFilter: { category: BIRD_CAT },
         render: { sprite: { texture: charImg, xScale: 0.2, yScale: 0.2 } }
     });
@@ -84,47 +87,40 @@ function spawnBird() {
     
     sling = Constraint.create({
         pointA: slingPos, bodyB: currentBird, 
-        stiffness: 0.3, length: 0, // Dây co giãn mạnh hơn
-        render: { strokeStyle: '#4a2c02', lineWidth: 6, type: 'line' }
+        stiffness: 0.4, length: 0,
+        render: { strokeStyle: '#4a2c02', lineWidth: 4 }
     });
     World.add(engine.world, [currentBird, sling]);
 }
 
-// Vẽ "Cái Ná" (Hình chữ Y)
+// Vẽ Ná
 Events.on(render, 'afterRender', () => {
     const ctx = render.context;
-    ctx.strokeStyle = '#4a2c02';
-    ctx.lineWidth = 12;
-    ctx.lineCap = 'round';
-    // Vẽ chân ná
-    ctx.beginPath();
-    ctx.moveTo(slingPos.x, slingPos.y);
-    ctx.lineTo(slingPos.x, h - 40);
-    ctx.stroke();
-    // Vẽ 2 nhánh ná
-    ctx.beginPath();
-    ctx.moveTo(slingPos.x - 20, slingPos.y - 30);
-    ctx.lineTo(slingPos.x, slingPos.y);
-    ctx.lineTo(slingPos.x + 20, slingPos.y - 30);
-    ctx.stroke();
+    ctx.strokeStyle = '#4a2c02'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(slingPos.x, slingPos.y); ctx.lineTo(slingPos.x, h - 40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(slingPos.x - 20, slingPos.y - 25); ctx.lineTo(slingPos.x, slingPos.y); ctx.lineTo(slingPos.x + 20, slingPos.y - 25); ctx.stroke();
 });
 
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
-    mouse: mouse, constraint: { stiffness: 0.1, render: { visible: false } }
+    mouse: mouse, constraint: { stiffness: 0.8, render: { visible: false } }
 });
 render.mouse = mouse; 
 mConstraint.collisionFilter.mask = BIRD_CAT;
 World.add(engine.world, mConstraint);
 
 Events.on(mConstraint, 'startdrag', (e) => {
-    if (e.body === currentBird) Sleeping.set(currentBird, false);
+    if (e.body === currentBird) {
+        Sleeping.set(currentBird, false);
+        playS(audioSling);
+    }
 });
 
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
         const dist = Vector.magnitude(Vector.sub(currentBird.position, slingPos));
-        if (dist > 30) { // Chỉ bắn nếu kéo đủ xa
+        if (dist > 25) {
+            playS(audioFly);
             setTimeout(() => { if(sling) World.remove(engine.world, sling); }, 20);
             shotsUsed++;
             document.getElementById('birds-left').innerText = 3 - shotsUsed;
@@ -133,11 +129,14 @@ Events.on(mConstraint, 'enddrag', (e) => {
     }
 });
 
+// Âm thanh va chạm
+Events.on(engine, 'collisionStart', (event) => {
+    event.pairs.forEach((pair) => { playS(audioHit); });
+});
+
 Events.on(engine, 'afterUpdate', () => {
     if (targetGem && targetGem.position.y > h - 100) {
-        targetGem = null;
-        level++;
-        setTimeout(initLevel, 1000);
+        targetGem = null; level++; setTimeout(initLevel, 1000);
     }
 });
 
