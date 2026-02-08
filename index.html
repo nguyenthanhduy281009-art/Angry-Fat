@@ -122,30 +122,47 @@ function spawnBird() {
 }
 
 
+// 1. Tạo chuột gắn với canvas
 const mouse = Mouse.create(render.canvas);
+
+// 2. Cấu hình chuột CHỈ tương tác với nhân vật (BIRD_CAT)
 const mConstraint = MouseConstraint.create(engine, {
-    mouse: mouse, constraint: { stiffness: 0.8, render: { visible: false } }
+    mouse: mouse,
+    constraint: {
+        stiffness: 0.1, // Để kéo mượt hơn, không bị giật
+        render: { visible: false }
+    }
 });
+
+// 3. KHÓA CHUỘT: Chỉ cho phép chạm vào nhóm vật thể của Bird
+mConstraint.collisionFilter.mask = BIRD_CAT; 
+
+// 4. ĐỒNG BỘ: Rất quan trọng để không bị lệch tâm khi chạm
 render.mouse = mouse; 
-mConstraint.collisionFilter.mask = BIRD_CAT;
+
 World.add(engine.world, mConstraint);
 
+// Xử lý kéo bắn (Chỉ tác động lên currentBird)
 Events.on(mConstraint, 'startdrag', (e) => {
     if (e.body === currentBird) {
         Sleeping.set(currentBird, false);
-        playS(audioSling);
     }
 });
 
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
         const dist = Vector.magnitude(Vector.sub(currentBird.position, slingPos));
-        if (dist > 25) {
-            playS(audioFly);
-            setTimeout(() => { if(sling) World.remove(engine.world, sling); }, 20);
+        if (dist > 25) { // Phải kéo một khoảng mới bắn
+            setTimeout(() => { 
+                if(sling) World.remove(engine.world, sling); 
+            }, 20);
+            
             shotsUsed++;
             document.getElementById('birds-left').innerText = 3 - shotsUsed;
-            setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3500);
+            
+            setTimeout(() => { 
+                if (shotsUsed < 3 && targetGem) spawnBird(); 
+            }, 3000);
         }
     }
 });
