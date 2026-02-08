@@ -3,18 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Perfect Hitbox</title>
+    <title>Angry Fat - Manual Reload</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; touch-action: none; font-family: sans-serif; }
         #ui { position: absolute; top: 15px; left: 20px; color: #2c3e50; pointer-events: none; z-index: 10; }
         .btn-reset { position: absolute; top: 15px; right: 20px; padding: 10px 15px; background: #ff4757; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 100; }
+        
+        /* Khung thay đạn */
+        #reload-btn { 
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            width: 80px; height: 80px; border: 4px solid #fff; border-radius: 15px; 
+            background: rgba(255,255,255,0.4); display: flex; align-items: center; 
+            justify-content: center; cursor: pointer; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        #reload-btn img { width: 60px; height: 60px; }
+        #reload-btn:active { transform: translateX(-50%) scale(0.9); }
     </style>
 </head>
 <body>
+
     <button class="btn-reset" onclick="initLevel()">LÀM LẠI</button>
+    
     <div id="ui">
         <h1 style="margin:0; font-size: 20px;">MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h1>
+    </div>
+
+    <div id="reload-btn" onclick="spawnBird()">
+        <img src="https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500" alt="Reload">
     </div>
 
 <script>
@@ -36,44 +53,36 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-// KHỞI TẠO CHUỘT
+// KHỞI TẠO CHUỘT (Chỉ bắt nhân vật)
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
     constraint: { stiffness: 0.2, render: { visible: false } }
 });
-mConstraint.collisionFilter.mask = 0x0002; // Chỉ chạm vào nhân vật
+const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
+mConstraint.collisionFilter.mask = BIRD_CAT; 
 render.mouse = mouse;
 World.add(engine.world, mConstraint);
 
-const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
-const slingPos = { x: w * 0.2, y: h * 0.7 };
+const slingPos = { x: w * 0.25, y: h * 0.75 }; // Vị trí bắn cố định
 
 const ground = Bodies.rectangle(w/2, h - 20, w, 60, { isStatic: true, friction: 1, render: { fillStyle: '#388e3c' } });
 World.add(engine.world, ground);
 
+// Hàm thay đạn thủ công
 function spawnBird() {
-    // Bán kính vật lý 30px khớp với tỉ lệ hiển thị của ảnh
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 20, {
-        density: 0.04, 
-        frictionAir: 0.01,
+    if (currentBird || shotsUsed >= 3) return; // Nếu đang có đạn hoặc hết lượt thì không cho spawn
+
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 35, {
+        density: 0.05, frictionAir: 0.01,
         collisionFilter: { category: BIRD_CAT },
-        render: { 
-            sprite: { 
-                texture: charImg, 
-                xScale: 0.2, // 0.3 của 200px (ảnh gốc) tương đương ~60px đường kính
-                yScale: 0.2 
-            } 
-        }
+        render: { sprite: { texture: charImg, xScale: 0.35, yScale: 0.35 } }
     });
     
     sling = Constraint.create({
-        pointA: slingPos, 
-        bodyB: currentBird, 
-        stiffness: 0.1, 
-        length: 0,
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 0,
         render: { strokeStyle: '#4a2c02', lineWidth: 5 }
     });
     
@@ -81,21 +90,21 @@ function spawnBird() {
     World.add(engine.world, [currentBird, sling]);
 }
 
-// Xử lý sự kiện kéo (Chỉ nhân vật mới phản hồi)
 Events.on(mConstraint, 'startdrag', (e) => {
-    if (e.body === currentBird) {
-        Sleeping.set(currentBird, false);
-    }
+    if (e.body === currentBird) Sleeping.set(currentBird, false);
 });
 
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
         const dist = Vector.magnitude(Vector.sub(currentBird.position, slingPos));
-        if (dist > 20) {
-            setTimeout(() => { if(sling) World.remove(engine.world, sling); }, 20);
+        if (dist > 30) {
+            setTimeout(() => { 
+                if(sling) World.remove(engine.world, sling); 
+                sling = null;
+                currentBird = null; // Cho phép bấm thay đạn tiếp
+            }, 20);
             shotsUsed++;
             document.getElementById('birds-left').innerText = 3 - shotsUsed;
-            setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3500);
         }
     }
 });
@@ -104,41 +113,42 @@ function initLevel() {
     Composite.clear(engine.world, true);
     World.add(engine.world, [ground, mConstraint]);
     shotsUsed = 0;
+    currentBird = null;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
 
-    const tx = w * 0.7;
-    const opt = { friction: 2, density: 0.1, collisionFilter: { category: OBST_CAT } };
+    // NÂNG MAP LÊN CAO
+    const tx = w * 0.65;
+    const baseY = h * 0.45; // Đưa tháp lên tầm cao hơn
+    const opt = { friction: 1, density: 0.1, collisionFilter: { category: OBST_CAT } };
     
-    // Random Map 
-    const mapType = Math.random();
-    if (mapType > 0.6) {
-        // Tháp gỗ
-        const b1 = Bodies.rectangle(tx, h-80, 20, 100, opt);
-        const b2 = Bodies.rectangle(tx+80, h-80, 20, 100, opt);
-        const roof = Bodies.rectangle(tx+40, h-140, 140, 20, opt);
-        targetGem = Bodies.circle(tx+40, h-180, 22, { label: 'gem', collisionFilter:{category:OBST_CAT}, render:{fillStyle:'#ffd700'}});
-        World.add(engine.world, [b1, b2, roof, targetGem]);
-    } else {
-        // Khối hộp che ngọc
-        const box = Bodies.rectangle(tx, h-80, 100, 100, opt);
-        targetGem = Bodies.circle(tx, h-150, 22, { label: 'gem', collisionFilter:{category:OBST_CAT}, render:{fillStyle:'#ffd700'}});
-        World.add(engine.world, [box, targetGem]);
-    }
-    spawnBird();
+    // Bệ đỡ lơ lửng
+    const platform = Bodies.rectangle(tx, baseY + 60, 200, 20, { isStatic: true, render: { fillStyle: '#4a2c02' } });
+    
+    // Cấu trúc tháp
+    const b1 = Bodies.rectangle(tx - 40, baseY, 20, 100, opt);
+    const b2 = Bodies.rectangle(tx + 40, baseY, 20, 100, opt);
+    const roof = Bodies.rectangle(tx, baseY - 60, 120, 20, opt);
+    
+    targetGem = Bodies.circle(tx, baseY - 100, 22, { 
+        label: 'gem', collisionFilter:{category:OBST_CAT}, render:{fillStyle:'#ffd700'}
+    });
+
+    World.add(engine.world, [platform, b1, b2, roof, targetGem]);
 }
 
 Events.on(engine, 'afterUpdate', () => {
     if (targetGem && targetGem.position.y > h - 100) {
-        targetGem = null; 
-        level++; 
-        setTimeout(initLevel, 1000);
+        targetGem = null; level++; setTimeout(initLevel, 1000);
     }
 });
 
 initLevel();
-// Chặn cuộn trang để tập trung cầm nắm
-document.body.addEventListener('touchstart', (e) => { if(e.target.tagName !== 'BUTTON') e.preventDefault(); }, { passive: false });
+
+// Chặn cuộn trang
+document.addEventListener('touchstart', (e) => { 
+    if(e.target.tagName !== 'BUTTON' && e.target.id !== 'reload-btn') e.preventDefault(); 
+}, { passive: false });
 </script>
 </body>
 </html>
