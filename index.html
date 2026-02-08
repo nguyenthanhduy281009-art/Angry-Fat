@@ -17,73 +17,61 @@
         <h1 style="margin:0; font-size: 20px;">MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h1>
     </div>
 
-<script>
 const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite, Sleeping, Vector } = Matter;
 
 const engine = Engine.create();
 const w = window.innerWidth, h = window.innerHeight;
+
+// 1. Khởi tạo Render
 const render = Render.create({
     element: document.body,
     engine: engine,
-    options: { width: w, height: h, wireframes: false, background: '#87CEEB' }
+    options: { 
+        width: w, 
+        height: h, 
+        wireframes: false, 
+        background: '#87CEEB',
+        pixelRatio: window.devicePixelRatio // Đảm bảo độ nét và tọa độ chuẩn
+    }
 });
 
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
+// 2. KHỞI TẠO CHUỘT TRƯỚC (Rất quan trọng)
+const mouse = Mouse.create(render.canvas);
+const mConstraint = MouseConstraint.create(engine, {
+    mouse: mouse,
+    constraint: { stiffness: 0.1, render: { visible: false } }
+});
+
+// Chỉ cho chuột bắt nhân vật
+mConstraint.collisionFilter.mask = 0x0002; 
+
+// ÉP TỌA ĐỘ CHUỘT KHỚP VỚI CANVAS (Sửa lỗi không chạm được)
+render.mouse = mouse;
+
+World.add(engine.world, mConstraint);
+
+// --- LOGIC GAME ---
 const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
 const slingPos = { x: w * 0.2, y: h * 0.7 };
 
-// Mặt đất cố định
 const ground = Bodies.rectangle(w/2, h - 20, w, 60, { isStatic: true, friction: 1, render: { fillStyle: '#388e3c' } });
 World.add(engine.world, ground);
 
-function initLevel() {
-    Composite.clear(engine.world, true);
-    World.add(engine.world, ground);
-    shotsUsed = 0;
-    document.getElementById('birds-left').innerText = 3;
-    document.getElementById('lvl').innerText = level;
-    
-    const tx = w * 0.65;
-    const opt = { friction: 1, density: 0.1, frictionStatic: 10, collisionFilter: { category: OBST_CAT } };
-    
-    // MAP NGẪU NHIÊN: Ngọc luôn nằm TRÊN gỗ
-    const mapStyle = Math.floor(Math.random() * 3);
-
-    if (mapStyle === 0) { // Tháp cao
-        for (let i = 0; i < 3; i++) {
-            const y = h - 90 - (i * 100);
-            const r = Bodies.rectangle(tx + 45, y - 55, 140, 20, opt);
-            World.add(engine.world, [Bodies.rectangle(tx, y, 20, 90, opt), Bodies.rectangle(tx + 90, y, 20, 90, opt), r]);
-            if (i === 1) { // Tầng 2
-                targetGem = Bodies.circle(tx + 45, y - 90, 22, { label: 'gem', collisionFilter:{category:OBST_CAT}, render: { fillStyle: '#ffd700' } });
-            }
-        }
-    } else { // Tháp kim tự tháp
-        const y1 = h - 90, y2 = y1 - 100;
-        World.add(engine.world, [
-            Bodies.rectangle(tx-30, y1, 20, 90, opt), Bodies.rectangle(tx+120, y1, 20, 90, opt), Bodies.rectangle(tx+45, y1-55, 200, 20, opt),
-            Bodies.rectangle(tx+15, y2, 20, 90, opt), Bodies.rectangle(tx+75, y2, 20, 90, opt), Bodies.rectangle(tx+45, y2-55, 100, 20, opt)
-        ]);
-        targetGem = Bodies.circle(tx + 45, y2 - 90, 22, { label: 'gem', collisionFilter:{category:OBST_CAT}, render: { fillStyle: '#ffd700' } });
-    }
-    World.add(engine.world, targetGem);
-    spawnBird();
-}
-
 function spawnBird() {
-    // Tăng kích thước vùng chạm (35) để điện thoại dễ bắt dính
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 35, {
+    // Tăng vùng nhạy lên 40 để cực kỳ dễ chạm
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 40, {
         density: 0.05, frictionAir: 0.01,
         collisionFilter: { category: BIRD_CAT },
-        render: { sprite: { texture: charImg, xScale: 0.35, yScale: 0.35 } }
+        render: { sprite: { texture: charImg, xScale: 0.4, yScale: 0.4 } }
     });
     
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, stiffness: 0.15, length: 0,
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 0,
         render: { strokeStyle: '#4a2c02', lineWidth: 5 }
     });
     
@@ -91,24 +79,18 @@ function spawnBird() {
     World.add(engine.world, [currentBird, sling]);
 }
 
-// FIX KÉO BẮN: Chỉ tương tác với Bird
-const mouse = Mouse.create(render.canvas);
-const mConstraint = MouseConstraint.create(engine, {
-    mouse: mouse,
-    constraint: { stiffness: 0.1, render: { visible: false } }
-});
-mConstraint.collisionFilter.mask = BIRD_CAT; 
-render.mouse = mouse; 
-World.add(engine.world, mConstraint);
-
+// Khi bắt đầu kéo
 Events.on(mConstraint, 'startdrag', (e) => {
-    if (e.body === currentBird) Sleeping.set(currentBird, false);
+    if (e.body === currentBird) {
+        Sleeping.set(currentBird, false);
+    }
 });
 
+// Khi thả tay
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
         const dist = Vector.magnitude(Vector.sub(currentBird.position, slingPos));
-        if (dist > 30) {
+        if (dist > 20) {
             setTimeout(() => { if(sling) World.remove(engine.world, sling); }, 20);
             shotsUsed++;
             document.getElementById('birds-left').innerText = 3 - shotsUsed;
@@ -117,15 +99,25 @@ Events.on(mConstraint, 'enddrag', (e) => {
     }
 });
 
-Events.on(engine, 'afterUpdate', () => {
-    // Chỉ thắng khi ngọc rơi sát đất (h - 100)
-    if (targetGem && targetGem.position.y > h - 100) {
-        targetGem = null; level++; setTimeout(initLevel, 1000);
-    }
-});
+// Khởi tạo màn chơi đầu tiên
+function initLevel() {
+    Composite.clear(engine.world, true);
+    World.add(engine.world, [ground, mConstraint]); // Add lại mConstraint sau khi clear
+    shotsUsed = 0;
+    
+    // Tạo tháp đơn giản để test
+    const tx = w * 0.7;
+    const opt = { friction: 1, density: 0.1, collisionFilter: { category: OBST_CAT } };
+    const box = Bodies.rectangle(tx, h - 80, 80, 80, opt);
+    targetGem = Bodies.circle(tx, h - 150, 20, { label: 'gem', collisionFilter: { category: OBST_CAT }, render: { fillStyle: '#ffd700' } });
+    
+    World.add(engine.world, [box, targetGem]);
+    spawnBird();
+}
 
 initLevel();
-window.addEventListener('resize', () => { location.reload(); });
-</script>
+
+// Ngăn màn hình bị kéo trượt trên điện thoại
+document.body.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
 </body>
 </html>
