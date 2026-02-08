@@ -113,28 +113,42 @@ render.mouse = mouse;
 mConstraint.collisionFilter.mask = BIRD_CAT;
 World.add(engine.world, mConstraint);
 
+// Thay thế đoạn code sự kiện Mouse và sau Update bằng đoạn này:
+
 let firing = false;
 
-// Khi bắt đầu chạm vào để kéo, "đánh thức" nhân vật dậy
+// Khi bắt đầu kéo
 Events.on(mConstraint, 'startdrag', (e) => {
     if (e.body === currentBird) {
         Sleeping.set(currentBird, false);
     }
 });
 
+// KHI THẢ TAY: Xóa dây ná ngay lập tức để không bị dính
 Events.on(mConstraint, 'enddrag', (e) => { 
-    if (e.body === currentBird) firing = true; 
+    if (e.body === currentBird) {
+        // Chỉ bắn khi đã kéo ra một khoảng nhất định
+        const dist = Matter.Vector.magnitude(Matter.Vector.sub(currentBird.position, slingPos));
+        if (dist > 20) {
+            firing = true;
+            // Xóa dây ná NGAY LẬP TỨC ở đây
+            setTimeout(() => {
+                if(sling) World.remove(engine.world, sling);
+            }, 10); 
+            
+            shotsUsed++;
+            document.getElementById('birds-left').innerText = 3 - shotsUsed;
+            
+            // Hồi sinh con mới sau 3 giây
+            setTimeout(() => { 
+                if (shotsUsed < 3 && targetGem) spawnBird(); 
+            }, 3000);
+        }
+    }
 });
 
 Events.on(engine, 'afterUpdate', () => {
-    if (firing && currentBird.position.x > slingPos.x + 10) {
-        World.remove(engine.world, sling);
-        firing = false;
-        shotsUsed++;
-        document.getElementById('birds-left').innerText = 3 - shotsUsed;
-        setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3000);
-    }
-    
+    // Kiểm tra chiến thắng
     if (targetGem && targetGem.position.y > h - 100) {
         targetGem = null;
         level++;
