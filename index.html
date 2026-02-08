@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Pro Fix</title>
+    <title>Angry Fat - Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; touch-action: none; font-family: sans-serif; }
@@ -17,43 +17,34 @@
         <h1 style="margin:0; font-size: 20px;">MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h1>
     </div>
 
+<script>
 const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite, Sleeping, Vector } = Matter;
 
 const engine = Engine.create();
 const w = window.innerWidth, h = window.innerHeight;
 
-// 1. Khởi tạo Render
 const render = Render.create({
     element: document.body,
     engine: engine,
     options: { 
-        width: w, 
-        height: h, 
-        wireframes: false, 
-        background: '#87CEEB',
-        pixelRatio: window.devicePixelRatio // Đảm bảo độ nét và tọa độ chuẩn
+        width: w, height: h, 
+        wireframes: false, background: '#87CEEB',
+        pixelRatio: window.devicePixelRatio 
     }
 });
 
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-// 2. KHỞI TẠO CHUỘT TRƯỚC (Rất quan trọng)
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
     constraint: { stiffness: 0.1, render: { visible: false } }
 });
-
-// Chỉ cho chuột bắt nhân vật
 mConstraint.collisionFilter.mask = 0x0002; 
-
-// ÉP TỌA ĐỘ CHUỘT KHỚP VỚI CANVAS (Sửa lỗi không chạm được)
-render.mouse = mouse;
-
+render.mouse = mouse; 
 World.add(engine.world, mConstraint);
 
-// --- LOGIC GAME ---
 const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
@@ -63,7 +54,6 @@ const ground = Bodies.rectangle(w/2, h - 20, w, 60, { isStatic: true, friction: 
 World.add(engine.world, ground);
 
 function spawnBird() {
-    // Tăng vùng nhạy lên 40 để cực kỳ dễ chạm
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 40, {
         density: 0.05, frictionAir: 0.01,
         collisionFilter: { category: BIRD_CAT },
@@ -79,14 +69,10 @@ function spawnBird() {
     World.add(engine.world, [currentBird, sling]);
 }
 
-// Khi bắt đầu kéo
 Events.on(mConstraint, 'startdrag', (e) => {
-    if (e.body === currentBird) {
-        Sleeping.set(currentBird, false);
-    }
+    if (e.body === currentBird) Sleeping.set(currentBird, false);
 });
 
-// Khi thả tay
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
         const dist = Vector.magnitude(Vector.sub(currentBird.position, slingPos));
@@ -99,25 +85,41 @@ Events.on(mConstraint, 'enddrag', (e) => {
     }
 });
 
-// Khởi tạo màn chơi đầu tiên
 function initLevel() {
     Composite.clear(engine.world, true);
-    World.add(engine.world, [ground, mConstraint]); // Add lại mConstraint sau khi clear
+    World.add(engine.world, [ground, mConstraint]);
     shotsUsed = 0;
-    
-    // Tạo tháp đơn giản để test
+    document.getElementById('birds-left').innerText = 3;
+    document.getElementById('lvl').innerText = level;
+
     const tx = w * 0.7;
     const opt = { friction: 1, density: 0.1, collisionFilter: { category: OBST_CAT } };
-    const box = Bodies.rectangle(tx, h - 80, 80, 80, opt);
-    targetGem = Bodies.circle(tx, h - 150, 20, { label: 'gem', collisionFilter: { category: OBST_CAT }, render: { fillStyle: '#ffd700' } });
     
-    World.add(engine.world, [box, targetGem]);
+    // Đổi Map ngẫu nhiên
+    if (Math.random() > 0.5) {
+        // Map 1: Tháp cao
+        const b1 = Bodies.rectangle(tx, h-80, 20, 100, opt);
+        const b2 = Bodies.rectangle(tx+100, h-80, 20, 100, opt);
+        const roof = Bodies.rectangle(tx+50, h-140, 150, 20, opt);
+        targetGem = Bodies.circle(tx+50, h-180, 20, { label: 'gem', collisionFilter:{category:OBST_CAT}, render:{fillStyle:'#ffd700'}});
+        World.add(engine.world, [b1, b2, roof, targetGem]);
+    } else {
+        // Map 2: Kim tự tháp
+        const b1 = Bodies.rectangle(tx+50, h-80, 150, 80, opt);
+        targetGem = Bodies.circle(tx+50, h-150, 20, { label: 'gem', collisionFilter:{category:OBST_CAT}, render:{fillStyle:'#ffd700'}});
+        World.add(engine.world, [b1, targetGem]);
+    }
     spawnBird();
 }
 
-initLevel();
+Events.on(engine, 'afterUpdate', () => {
+    if (targetGem && targetGem.position.y > h - 100) {
+        targetGem = null; level++; setTimeout(initLevel, 1000);
+    }
+});
 
-// Ngăn màn hình bị kéo trượt trên điện thoại
+initLevel();
 document.body.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+</script>
 </body>
 </html>
