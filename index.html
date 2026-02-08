@@ -57,7 +57,7 @@ function initLevel() {
     const layers = 3;
     for (let i = 0; i < layers; i++) {
         const y = h - 80 - (i * 90);
-        const opt = { friction: 1, density: 0.1, frictionStatic: 10, collisionFilter: { category: OBST_CAT } };
+        const opt = { friction: 2, density: 0.2, frictionStatic: 12, collisionFilter: { category: OBST_CAT } };
         World.add(engine.world, [
             Bodies.rectangle(tx, y, 20, 80, opt),
             Bodies.rectangle(tx + 80, y, 20, 80, opt),
@@ -73,14 +73,14 @@ function initLevel() {
 
 function spawnBird() {
     // Reset mọi thông số vật lý để không bị xoay vòng vòng
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 32, {
-        density: 0.02,
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 28, {
+        density: 0.03,
         frictionAir: 0.05,
         restitution: 0.3,
         angle: 0,
         angularVelocity: 0,
         collisionFilter: { category: BIRD_CAT },
-        render: { sprite: { texture: charImg, xScale: 0.32, yScale: 0.32 } }
+        render: { sprite: { texture: charImg, xScale: 0.28, yScale: 0.28 } }
     });
 
     // Ép nhân vật đứng im (ngủ) cho đến khi người chơi tương tác
@@ -89,7 +89,7 @@ function spawnBird() {
     sling = Constraint.create({
         pointA: slingPos,
         bodyB: currentBird,
-        stiffness: 0.1,
+        stiffness: 0.2,
         length: 0,
         render: { strokeStyle: '#4a2c02', lineWidth: 5 }
     });
