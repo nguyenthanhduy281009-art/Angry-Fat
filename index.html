@@ -6,7 +6,11 @@
     <title>Angry Fat - Fixed Respawn</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; touch-action: none; }
+        body { 
+    margin: 0; padding: 0; overflow: hidden; 
+    background: #87CEEB; /* Màu xanh da trời sáng */
+    touch-action: none; 
+}
         canvas { display: block; background: linear-gradient(to bottom, #4facfe, #00f2fe); }
         #ui { position: absolute; top: 15px; left: 20px; color: white; pointer-events: none; font-family: sans-serif; }
         .btn-reset { position: absolute; top: 15px; right: 20px; padding: 10px 15px; background: #ff4757; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -28,7 +32,11 @@ const h = window.innerHeight;
 const render = Render.create({
     element: document.body,
     engine: engine,
-    options: { width: w, height: h, wireframes: false, background: 'transparent' }
+    options: { 
+        width: w, height: h, 
+        wireframes: false, 
+        background: '#87CEEB' 
+    }
 });
 
 Render.run(render);
@@ -57,7 +65,7 @@ function initLevel() {
     const layers = 3;
     for (let i = 0; i < layers; i++) {
         const y = h - 80 - (i * 90);
-        const opt = { friction: 2, density: 0.2, frictionStatic: 12, collisionFilter: { category: OBST_CAT } };
+        const opt = { friction: 2, density: 0.25, frictionStatic: 15, collisionFilter: { category: OBST_CAT } };
         World.add(engine.world, [
             Bodies.rectangle(tx, y, 20, 80, opt),
             Bodies.rectangle(tx + 80, y, 20, 80, opt),
@@ -73,14 +81,14 @@ function initLevel() {
 
 function spawnBird() {
     // Reset mọi thông số vật lý để không bị xoay vòng vòng
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 28, {
-        density: 0.03,
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 24, {
+        density: 0.05,
         frictionAir: 0.05,
         restitution: 0.3,
         angle: 0,
         angularVelocity: 0,
         collisionFilter: { category: BIRD_CAT },
-        render: { sprite: { texture: charImg, xScale: 0.28, yScale: 0.28 } }
+        render: { sprite: { texture: charImg, xScale: 0.22, yScale: 0.22 } }
     });
 
     // Ép nhân vật đứng im (ngủ) cho đến khi người chơi tương tác
@@ -89,7 +97,7 @@ function spawnBird() {
     sling = Constraint.create({
         pointA: slingPos,
         bodyB: currentBird,
-        stiffness: 0.2,
+        stiffness: 0.36,
         length: 0,
         render: { strokeStyle: '#4a2c02', lineWidth: 5 }
     });
