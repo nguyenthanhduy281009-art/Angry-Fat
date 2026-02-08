@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Perfect Collision</title>
+    <title>Angry Fat - Fixed Logic</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body { 
@@ -16,14 +16,14 @@
         .btn-reset {
             position: absolute; top: 10px; right: 15px; padding: 8px 12px;
             background: #e74c3c; color: white; border: none; border-radius: 5px; 
-            cursor: pointer; font-weight: bold; z-index: 20; font-size: 12px;
+            cursor: pointer; font-weight: bold; z-index: 20;
         }
     </style>
 </head>
 <body>
     <button class="btn-reset" onclick="initLevel()">RESET</button>
     <div id="ui">
-        <h1 style="font-size: 16px; margin:0">LV: <span id="lvl">1</span> | Lượt: <span id="birds-left">3</span></h1>
+        <h1 style="font-size: 16px; margin:0">LEVEL: <span id="lvl">1</span> | Lượt: <span id="birds-left">3</span></h1>
     </div>
 
 <script>
@@ -46,6 +46,7 @@ let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
 const slingPos = { x: 200, y: 450 };
 
+// Mặt đất
 const ground = Bodies.rectangle(500, 580, 1000, 40, { isStatic: true, friction: 1, render: { fillStyle: '#2ecc71' } });
 World.add(engine.world, ground);
 
@@ -58,19 +59,31 @@ function initLevel() {
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
 
-    const tx = 750;
-    const layers = 3;
+    // Xây tháp VỮNG CHẮC và BIẾN ĐỔI theo màn
+    const tx = 600 + (Math.random() * 250); // Vị trí tháp thay đổi mỗi màn
+    const layers = 2 + (level % 3); // Độ cao thay đổi mỗi màn
+    
     for (let i = 0; i < layers; i++) {
         const y = 540 - (i * 85);
-        const opt = { friction: 1, collisionFilter: { category: OBSTACLE_CATEGORY } };
+        // Tăng density (khối lượng) để gỗ nặng và vững hơn
+        const opt = { 
+            friction: 1, 
+            density: 0.05, 
+            frictionStatic: 10,
+            collisionFilter: { category: OBSTACLE_CATEGORY } 
+        };
+        
         World.add(engine.world, [
-            Bodies.rectangle(tx, y, 15, 75, opt),
-            Bodies.rectangle(tx + 70, y, 15, 75, opt),
-            Bodies.rectangle(tx + 35, y - 45, 120, 15, opt)
+            Bodies.rectangle(tx, y, 15, 80, opt),
+            Bodies.rectangle(tx + 80, y, 15, 80, opt),
+            Bodies.rectangle(tx + 40, y - 50, 140, 20, opt)
         ]);
+        
         if (i === layers - 1) {
-            targetGem = Bodies.circle(tx + 35, y - 80, 18, { 
-                label: 'gem', collisionFilter: { category: OBSTACLE_CATEGORY },
+            targetGem = Bodies.circle(tx + 40, y - 90, 20, { 
+                label: 'gem', 
+                density: 0.001,
+                collisionFilter: { category: OBSTACLE_CATEGORY },
                 render: { fillStyle: '#f1c40f' } 
             });
             World.add(engine.world, targetGem);
@@ -80,23 +93,19 @@ function initLevel() {
 }
 
 function spawnBird() {
-    // ĐIỀU CHỈNH CHUẨN: Bán kính 25 và Scale 0.28 để diện tích tiếp xúc thật nhất
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.012,
+    // Tăng diện tích tiếp xúc (Bán kính 32) và Scale (0.32)
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 32, {
+        density: 0.02, // Làm nhân vật nặng hơn để húc đổ tháp cứng
         friction: 0.5,
         collisionFilter: { category: BIRD_CATEGORY },
         render: { 
-            sprite: { 
-                texture: charImg, 
-                xScale: 0.28, 
-                yScale: 0.28 
-            } 
+            sprite: { texture: charImg, xScale: 0.32, yScale: 0.32 } 
         }
     });
     
     sling = Constraint.create({
         pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 0,
-        render: { strokeStyle: '#4a2c02', lineWidth: 3 }
+        render: { strokeStyle: '#4a2c02', lineWidth: 4 }
     });
     World.add(engine.world, [currentBird, sling]);
 }
@@ -121,7 +130,9 @@ Events.on(engine, 'afterUpdate', () => {
         document.getElementById('birds-left').innerText = 3 - shotsUsed;
         setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3000);
     }
-    if (targetGem && targetGem.position.y > 545) {
+
+    // KIỂM TRA CHIẾN THẮNG: Chỉ cần ngọc rơi thấp hơn tháp hoặc chạm đất
+    if (targetGem && targetGem.position.y > 530) {
         targetGem = null;
         level++;
         setTimeout(initLevel, 800);
