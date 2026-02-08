@@ -56,15 +56,15 @@ World.add(engine.world, ground);
 
 function spawnBird() {
     // Bán kính vật lý 30px khớp với tỉ lệ hiển thị của ảnh
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 30, {
-        density: 0.05, 
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 20, {
+        density: 0.04, 
         frictionAir: 0.01,
         collisionFilter: { category: BIRD_CAT },
         render: { 
             sprite: { 
                 texture: charImg, 
-                xScale: 0.3, // 0.3 của 200px (ảnh gốc) tương đương ~60px đường kính
-                yScale: 0.3 
+                xScale: 0.2, // 0.3 của 200px (ảnh gốc) tương đương ~60px đường kính
+                yScale: 0.2 
             } 
         }
     });
@@ -108,7 +108,7 @@ function initLevel() {
     document.getElementById('lvl').innerText = level;
 
     const tx = w * 0.7;
-    const opt = { friction: 1, density: 0.1, collisionFilter: { category: OBST_CAT } };
+    const opt = { friction: 2, density: 0.1, collisionFilter: { category: OBST_CAT } };
     
     // Random Map 
     const mapType = Math.random();
