@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Final Edition</title>
+    <title>Angry Fat - Fix Display</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #2c3e50; touch-action: none; font-family: 'Arial', sans-serif; }
-        #game-container { position: relative; width: 100vw; height: 100vh; background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%); }
-        #ui { position: absolute; top: 10px; left: 20px; color: white; pointer-events: none; z-index: 10; text-shadow: 1px 1px 5px rgba(0,0,0,0.5); }
-        .btn-reset { position: absolute; top: 10px; right: 20px; padding: 10px 20px; background: #ff4757; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; z-index: 100; border-bottom: 4px solid #ff6b81; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #4facfe; position: fixed; width: 100%; height: 100%; }
+        #ui { position: absolute; top: 10px; left: 20px; color: white; pointer-events: none; z-index: 10; font-family: sans-serif; }
+        .btn-reset { position: absolute; top: 10px; right: 20px; padding: 8px 15px; background: #ff4757; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; z-index: 100; }
         
         #reload-btn { 
-            position: absolute; bottom: 15px; left: 15px; 
-            width: 75px; height: 75px; border: 4px solid #fff; border-radius: 50%; 
+            position: absolute; bottom: 20px; left: 20px; 
+            width: 70px; height: 70px; border: 3px solid #fff; border-radius: 50%; 
             background: rgba(255,255,255,0.3); display: flex; align-items: center; 
-            justify-content: center; cursor: pointer; z-index: 100; backdrop-filter: blur(8px);
+            justify-content: center; cursor: pointer; z-index: 100;
         }
-        #reload-btn img { width: 50px; height: 50px; }
+        #reload-btn img { width: 45px; height: 45px; }
 
+        /* Ép xoay màn hình */
         #rotate-notice {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #1a1a1a; color: white; z-index: 9999;
@@ -29,72 +30,64 @@
 </head>
 <body>
 
-    <div id="rotate-notice">
-        <h2 style="margin-bottom: 10px;">🔄 VUI LÒNG XOAY NGANG</h2>
-        <p>Để chơi game mượt mà nhất!</p>
-    </div>
+    <div id="rotate-notice"><h2>🔄 XOAY NGANG ĐỂ CHƠI</h2></div>
 
-    <div id="game-container">
-        <div id="ui">
-            <h3 style="margin:0;">MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h3>
-        </div>
-        <button class="btn-reset" onclick="initLevel()">RESET</button>
-        <div id="reload-btn" onclick="spawnBird()">
-            <img src="https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500">
-        </div>
+    <button class="btn-reset" onclick="initLevel()">RESET</button>
+    <div id="ui"><h3>MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h3></div>
+    
+    <div id="reload-btn" onclick="spawnBird()">
+        <img src="https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500">
     </div>
 
 <script>
 const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite, Sleeping, Vector } = Matter;
 
 const engine = Engine.create();
-const container = document.getElementById('game-container');
 let w = window.innerWidth, h = window.innerHeight;
 
+// TẠO RENDER VỚI KÍCH THƯỚC CHUẨN
 const render = Render.create({
-    element: container,
+    element: document.body,
     engine: engine,
-    options: { width: w, height: h, wireframes: false, background: 'transparent', pixelRatio: window.devicePixelRatio }
+    options: { 
+        width: w, height: h, 
+        wireframes: false, 
+        background: 'linear-gradient(to bottom, #4facfe, #00f2fe)',
+        pixelRatio: 1 // ÉP PIXEL RATIO BẰNG 1 ĐỂ KHÔNG BỊ ZOOM LỖI
+    }
 });
 
 Render.run(render);
-const runner = Runner.create();
-Runner.run(runner, engine);
+Runner.run(Runner.create(), engine);
 
-const BIRD_CAT = 0x0002, OBST_CAT = 0x0004, GROUND_CAT = 0x0001;
+const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
-let slingPos = { x: 140, y: h * 0.7 };
+let slingPos = { x: 120, y: h * 0.7 };
 
-// CHUỘT: Tối ưu cảm ứng cực nhạy
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
-    constraint: { stiffness: 0.4, render: { visible: false } }
+    constraint: { stiffness: 0.2, render: { visible: false } }
 });
 mConstraint.collisionFilter.mask = BIRD_CAT;
 render.mouse = mouse;
 World.add(engine.world, mConstraint);
 
-const ground = Bodies.rectangle(w/2, h - 15, w * 2, 30, { 
-    isStatic: true, collisionFilter: { category: GROUND_CAT }, render: { fillStyle: '#2ecc71' } 
-});
+// ĐẤT
+const ground = Bodies.rectangle(w/2, h - 10, w * 5, 20, { isStatic: true, render: { fillStyle: '#2ecc71' } });
 
 function spawnBird() {
     if (currentBird || shotsUsed >= 3) return;
-    
-    // Nhân vật nhỏ (25px), tỷ lệ hiển thị khớp Hitbox
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.1, frictionAir: 0.01,
+        density: 0.05, frictionAir: 0.01,
         collisionFilter: { category: BIRD_CAT },
         render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
     });
-    
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, stiffness: 0.15, length: 0,
-        render: { strokeStyle: '#f1c40f', lineWidth: 4 }
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 0,
+        render: { strokeStyle: '#fff', lineWidth: 3 }
     });
-    
     Sleeping.set(currentBird, true);
     World.add(engine.world, [currentBird, sling]);
 }
@@ -103,59 +96,43 @@ function initLevel() {
     Composite.clear(engine.world, true);
     w = window.innerWidth; h = window.innerHeight;
     render.canvas.width = w; render.canvas.height = h;
-    slingPos = { x: 140, y: h * 0.7 };
+    slingPos = { x: 120, y: h * 0.7 };
 
     World.add(engine.world, [ground, mConstraint]);
     shotsUsed = 0; currentBird = null;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
 
-    // MAP THÁP GỖ ĐẸP (3 TẦNG THIẾT KẾ CÂN ĐỐI)
-    const tx = w * 0.75;
-    const baseY = h * 0.5;
-    const opt = { friction: 0.8, density: 0.01, collisionFilter: { category: OBST_CAT } };
+    // MAP: THÁP GỖ 2 TẦNG GỌN GÀNG (ĐỂ DỄ THẤY TRÊN ĐIỆN THOẠI)
+    const tx = w * 0.7;
+    const baseY = h * 0.6;
+    const opt = { friction: 0.5, density: 0.01, collisionFilter: { category: OBST_CAT } };
 
-    // Bệ đá lơ lửng cao cấp
-    World.add(engine.world, Bodies.rectangle(tx, baseY + 150, 200, 20, { 
-        isStatic: true, render: { fillStyle: '#7f8c8d' } 
-    }));
+    // Bệ đỡ tháp
+    const platform = Bodies.rectangle(tx, baseY + 60, 150, 20, { isStatic: true, render: { fillStyle: '#34495e' } });
+    
+    // Tầng 1
+    const w1 = Bodies.rectangle(tx - 40, baseY, 15, 80, { ...opt, render: { fillStyle: '#d35400' } });
+    const w2 = Bodies.rectangle(tx + 40, baseY, 15, 80, { ...opt, render: { fillStyle: '#d35400' } });
+    const r1 = Bodies.rectangle(tx, baseY - 45, 120, 15, { ...opt, render: { fillStyle: '#95a5a6' } });
+    
+    // Tầng 2 & Ngọc
+    targetGem = Bodies.circle(tx, baseY - 80, 18, { label: 'gem', render: { fillStyle: '#f1c40f' } });
 
-    // Xây tháp 3 tầng với các thanh gỗ mảnh nhưng chắc chắn
-    for(let i=0; i<3; i++) {
-        let y = (baseY + 100) - (i * 90);
-        let woodColor = i === 2 ? '#e67e22' : '#d35400';
-        World.add(engine.world, [
-            Bodies.rectangle(tx - 40, y, 12, 80, { ...opt, render: { fillStyle: woodColor } }),
-            Bodies.rectangle(tx + 40, y, 12, 80, { ...opt, render: { fillStyle: woodColor } }),
-            Bodies.rectangle(tx, y - 45, 120, 12, { ...opt, render: { fillStyle: '#95a5a6' } })
-        ]);
-
-        if (i === 2) { // Viên ngọc ở đỉnh tháp
-            targetGem = Bodies.circle(tx, y - 80, 18, { 
-                label: 'gem', collisionFilter: { category: OBST_CAT },
-                render: { fillStyle: '#f1c40f', strokeStyle: '#fff', lineWidth: 2 } 
-            });
-            World.add(engine.world, targetGem);
-        }
-    }
+    World.add(engine.world, [platform, w1, w2, r1, targetGem]);
 }
 
-// Xử lý kéo thả
 Events.on(mConstraint, 'startdrag', (e) => { if (e.body === currentBird) Sleeping.set(currentBird, false); });
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
         if (Vector.magnitude(Vector.sub(currentBird.position, slingPos)) > 20) {
-            setTimeout(() => { 
-                if(sling) World.remove(engine.world, sling); 
-                sling = null; currentBird = null; 
-            }, 30);
+            setTimeout(() => { if(sling) World.remove(engine.world, sling); sling = null; currentBird = null; }, 50);
             shotsUsed++;
             document.getElementById('birds-left').innerText = 3 - shotsUsed;
         }
     }
 });
 
-// Kiểm tra thắng màn
 Events.on(engine, 'afterUpdate', () => {
     if (targetGem && targetGem.position.y > h) {
         targetGem = null; level++; setTimeout(initLevel, 1000);
