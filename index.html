@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Fixed Shooting</title>
+    <title>Angry Fat - Fixed Respawn</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; touch-action: none; }
@@ -19,7 +19,7 @@
     </div>
 
 <script>
-const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite } = Matter;
+const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite, Sleeping } = Matter;
 
 const engine = Engine.create();
 const w = window.innerWidth;
@@ -41,25 +41,23 @@ let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
 const slingPos = { x: w * 0.2, y: h * 0.7 };
 
-const ground = Bodies.rectangle(w/2, h - 10, w, 60, { isStatic: true, render: { fillStyle: '#388e3c' } });
+const ground = Bodies.rectangle(w/2, h - 10, w, 60, { isStatic: true, friction: 1, render: { fillStyle: '#388e3c' } });
 World.add(engine.world, ground);
 
 function initLevel() {
     const all = Composite.allBodies(engine.world);
     all.forEach(b => { if(b !== ground) World.remove(engine.world, b); });
     if(sling) World.remove(engine.world, sling);
-
     shotsUsed = 0;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
-    spawnBird();
-
-    // Tháp
+    
+    // Xây tháp
     const tx = w * 0.7;
     const layers = 3;
     for (let i = 0; i < layers; i++) {
         const y = h - 80 - (i * 90);
-        const opt = { friction: 1, density: 0.05, collisionFilter: { category: OBST_CAT } };
+        const opt = { friction: 1, density: 0.1, frictionStatic: 10, collisionFilter: { category: OBST_CAT } };
         World.add(engine.world, [
             Bodies.rectangle(tx, y, 20, 80, opt),
             Bodies.rectangle(tx + 80, y, 20, 80, opt),
@@ -70,46 +68,65 @@ function initLevel() {
             World.add(engine.world, targetGem);
         }
     }
+    spawnBird();
 }
 
 function spawnBird() {
+    // Reset mọi thông số vật lý để không bị xoay vòng vòng
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 32, {
         density: 0.02,
+        frictionAir: 0.05,
+        restitution: 0.3,
+        angle: 0,
+        angularVelocity: 0,
         collisionFilter: { category: BIRD_CAT },
         render: { sprite: { texture: charImg, xScale: 0.32, yScale: 0.32 } }
     });
+
+    // Ép nhân vật đứng im (ngủ) cho đến khi người chơi tương tác
+    Sleeping.set(currentBird, true);
     
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 0,
+        pointA: slingPos,
+        bodyB: currentBird,
+        stiffness: 0.1,
+        length: 0,
         render: { strokeStyle: '#4a2c02', lineWidth: 5 }
     });
     World.add(engine.world, [currentBird, sling]);
 }
 
-// FIX: Cập nhật Mouse để nhận diện đúng trên mọi màn hình
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
-    constraint: { stiffness: 0.2, render: { visible: false } }
+    constraint: { stiffness: 0.1, render: { visible: false } }
 });
-// Đồng bộ tọa độ chuột với Canvas (Rất quan trọng cho Fullscreen)
 render.mouse = mouse; 
 mConstraint.collisionFilter.mask = BIRD_CAT;
 World.add(engine.world, mConstraint);
 
 let firing = false;
+
+// Khi bắt đầu chạm vào để kéo, "đánh thức" nhân vật dậy
+Events.on(mConstraint, 'startdrag', (e) => {
+    if (e.body === currentBird) {
+        Sleeping.set(currentBird, false);
+    }
+});
+
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) firing = true; 
 });
 
 Events.on(engine, 'afterUpdate', () => {
-    if (firing && currentBird.position.x > slingPos.x + 15) {
+    if (firing && currentBird.position.x > slingPos.x + 10) {
         World.remove(engine.world, sling);
         firing = false;
         shotsUsed++;
         document.getElementById('birds-left').innerText = 3 - shotsUsed;
         setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3000);
     }
+    
     if (targetGem && targetGem.position.y > h - 100) {
         targetGem = null;
         level++;
