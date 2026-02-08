@@ -3,204 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - High Quality</title>
+    <title>Angry Fat - Fixed Shooting</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body { 
-            margin: 0; padding: 0; width: 100vw; height: 100vh;
-            display: flex; justify-content: center; align-items: center; 
-            background: #222; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; 
-            touch-action: none;
-        }
-        canvas { 
-            display: block;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%);
-        }
-        #ui { 
-            position: absolute; top: 15px; left: 20px; color: white; 
-            pointer-events: none; z-index: 10; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-        }
-        .controls {
-            position: absolute; top: 15px; right: 20px; z-index: 20;
-            display: flex; gap: 10px;
-        }
-        .btn {
-            padding: 10px 18px; background: #ff4757; color: white; border: none; 
-            border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;
-            box-shadow: 0 4px #ff6b81; transition: 0.1s;
-        }
-        .btn:active { transform: translateY(2px); box-shadow: 0 2px #ff6b81; }
-        #level-msg {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            color: #fff; font-size: 48px; font-weight: 900; display: none;
-            text-shadow: 0 5px 15px rgba(0,0,0,0.5); pointer-events: none;
-        }
+        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; touch-action: none; }
+        canvas { display: block; background: linear-gradient(to bottom, #4facfe, #00f2fe); }
+        #ui { position: absolute; top: 15px; left: 20px; color: white; pointer-events: none; font-family: sans-serif; }
+        .btn-reset { position: absolute; top: 15px; right: 20px; padding: 10px 15px; background: #ff4757; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
+    <button class="btn-reset" onclick="initLevel()">LÀM LẠI</button>
     <div id="ui">
-        <h1 style="margin:0; font-size: 24px;">LEVEL <span id="lvl">1</span></h1>
-        <p style="margin:5px 0;">BIRD: <span id="birds-left">3</span>/3</p>
+        <h1 style="margin:0; font-size: 20px;">MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h1>
     </div>
-    <div class="controls">
-        <button class="btn" onclick="initLevel()">LÀM LẠI</button>
-    </div>
-    <div id="level-msg">CHIẾN THẮNG!</div>
 
 <script>
-const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite, Vector } = Matter;
+const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite } = Matter;
 
 const engine = Engine.create();
-const world = engine.world;
-
-// 1. Cấu hình Full Màn Hình
 const w = window.innerWidth;
 const h = window.innerHeight;
+
 const render = Render.create({
     element: document.body,
     engine: engine,
-    options: {
-        width: w,
-        height: h,
-        wireframes: false,
-        background: 'transparent'
-    }
+    options: { width: w, height: h, wireframes: false, background: 'transparent' }
 });
 
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
 const BIRD_CAT = 0x0002;
-const OBSTACLE_CAT = 0x0004;
+const OBST_CAT = 0x0004;
 
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
 const slingPos = { x: w * 0.2, y: h * 0.7 };
 
-// Mặt đất rộng theo màn hình
-const ground = Bodies.rectangle(w/2, h + 20, w * 2, 80, { 
-    isStatic: true, friction: 1, render: { fillStyle: '#388e3c' } 
-});
-World.add(world, ground);
+const ground = Bodies.rectangle(w/2, h - 10, w, 60, { isStatic: true, render: { fillStyle: '#388e3c' } });
+World.add(engine.world, ground);
 
 function initLevel() {
-    Composite.clear(world, true);
-    World.add(world, ground);
-    
+    const all = Composite.allBodies(engine.world);
+    all.forEach(b => { if(b !== ground) World.remove(engine.world, b); });
+    if(sling) World.remove(engine.world, sling);
+
     shotsUsed = 0;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
-    document.getElementById('level-msg').style.display = 'none';
+    spawnBird();
 
-    // Xây tháp thông minh
-    const tx = w * 0.65 + (Math.random() * (w * 0.15));
-    const baseWidth = 100;
-    const layers = 2 + (level % 3);
-
+    // Tháp
+    const tx = w * 0.7;
+    const layers = 3;
     for (let i = 0; i < layers; i++) {
-        const y = h - 60 - (i * 100);
-        const woodOpt = { 
-            friction: 1, density: 0.1, 
-            collisionFilter: { category: OBSTACLE_CAT },
-            render: { fillStyle: '#795548', strokeStyle: '#5d4037', lineWidth: 2 }
-        };
-        
-        const w1 = Bodies.rectangle(tx - 40, y, 20, 90, woodOpt);
-        const w2 = Bodies.rectangle(tx + 40, y, 20, 90, woodOpt);
-        const roof = Bodies.rectangle(tx, y - 55, 140, 20, woodOpt);
-        World.add(world, [w1, w2, roof]);
-
+        const y = h - 80 - (i * 90);
+        const opt = { friction: 1, density: 0.05, collisionFilter: { category: OBST_CAT } };
+        World.add(engine.world, [
+            Bodies.rectangle(tx, y, 20, 80, opt),
+            Bodies.rectangle(tx + 80, y, 20, 80, opt),
+            Bodies.rectangle(tx + 40, y - 50, 140, 20, opt)
+        ]);
         if (i === layers - 1) {
-            targetGem = Bodies.circle(tx, y - 100, 22, { 
-                label: 'gem', density: 0.05,
-                collisionFilter: { category: OBSTACLE_CAT },
-                render: { fillStyle: '#ffd700', strokeStyle: '#fff', lineWidth: 4 }
-            });
-            World.add(world, targetGem);
+            targetGem = Bodies.circle(tx + 40, y - 90, 22, { label: 'gem', collisionFilter: { category: OBST_CAT }, render: { fillStyle: '#ffd700' } });
+            World.add(engine.world, targetGem);
         }
     }
-    spawnBird();
 }
 
 function spawnBird() {
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 32, {
-        density: 0.03, // Nặng để phá tháp tốt hơn
-        frictionAir: 0.005,
-        restitution: 0.3,
+        density: 0.02,
         collisionFilter: { category: BIRD_CAT },
         render: { sprite: { texture: charImg, xScale: 0.32, yScale: 0.32 } }
     });
     
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, 
-        stiffness: 0.1, length: 0,
-        render: { strokeStyle: '#4a2c02', lineWidth: 6 }
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.1, length: 0,
+        render: { strokeStyle: '#4a2c02', lineWidth: 5 }
     });
-    World.add(world, [currentBird, sling]);
+    World.add(engine.world, [currentBird, sling]);
 }
 
-// Điều khiển
+// FIX: Cập nhật Mouse để nhận diện đúng trên mọi màn hình
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
-    constraint: { stiffness: 0.1, render: { visible: false } }
+    constraint: { stiffness: 0.2, render: { visible: false } }
 });
-mConstraint.collisionFilter.mask = BIRD_CAT; // Chỉ cho kéo chim
-World.add(world, mConstraint);
+// Đồng bộ tọa độ chuột với Canvas (Rất quan trọng cho Fullscreen)
+render.mouse = mouse; 
+mConstraint.collisionFilter.mask = BIRD_CAT;
+World.add(engine.world, mConstraint);
 
 let firing = false;
-Events.on(mConstraint, 'enddrag', (e) => { if (e.body === currentBird) firing = true; });
-
-// Hiệu ứng quỹ đạo (Trajectory) - Giống Angry Birds
-Events.on(render, 'afterRender', () => {
-    if (mConstraint.body === currentBird && !firing) {
-        const pos = currentBird.position;
-        const dist = Vector.magnitude(Vector.sub(pos, slingPos));
-        if (dist > 20) {
-            render.context.fillStyle = "rgba(255, 255, 255, 0.5)";
-            for (let i = 1; i < 10; i++) {
-                const vx = (slingPos.x - pos.x) * 0.12 * i;
-                const vy = (slingPos.y - pos.y) * 0.12 * i;
-                const tx = pos.x + vx * i;
-                const ty = pos.y + vy * i + 0.5 * 0.3 * (i * i);
-                render.context.beginPath();
-                render.context.arc(tx, ty, 3, 0, Math.PI * 2);
-                render.context.fill();
-            }
-        }
-    }
+Events.on(mConstraint, 'enddrag', (e) => { 
+    if (e.body === currentBird) firing = true; 
 });
 
 Events.on(engine, 'afterUpdate', () => {
-    if (firing && currentBird.position.x > slingPos.x + 10) {
-        World.remove(world, sling);
+    if (firing && currentBird.position.x > slingPos.x + 15) {
+        World.remove(engine.world, sling);
         firing = false;
         shotsUsed++;
         document.getElementById('birds-left').innerText = 3 - shotsUsed;
         setTimeout(() => { if (shotsUsed < 3 && targetGem) spawnBird(); }, 3000);
     }
-
-    if (targetGem && targetGem.position.y > h - 80) {
+    if (targetGem && targetGem.position.y > h - 100) {
         targetGem = null;
-        document.getElementById('level-msg').style.display = 'block';
-        setTimeout(() => { level++; initLevel(); }, 1500);
-    }
-
-    // Tự động reset nếu chim bay mất hoặc tháp đứng im quá lâu
-    if (shotsUsed >= 3 && targetGem && targetGem.speed < 0.2 && currentBird.speed < 0.2) {
-        setTimeout(() => { if(targetGem) initLevel(); }, 2000);
+        level++;
+        setTimeout(initLevel, 1000);
     }
 });
 
 initLevel();
-
-// Fix lỗi resize màn hình
-window.addEventListener('resize', () => {
-    render.canvas.width = window.innerWidth;
-    render.canvas.height = window.innerHeight;
-});
 </script>
 </body>
 </html>
