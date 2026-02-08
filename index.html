@@ -54,29 +54,57 @@ function initLevel() {
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
     
-    const tx = w * 0.6 + (Math.random() * w * 0.2);
-    const layers = 3;
-    const gemLayer = Math.floor(Math.random() * layers);
+    const tx = w * 0.6 + (Math.random() * w * 0.15);
+    const opt = { friction: 1, density: 0.2, frictionStatic: 10, collisionFilter: { category: OBST_CAT } };
+    
+    // CHỌN KIỂU MAP NGẪU NHIÊN (1 trong 3 kiểu)
+    const mapStyle = Math.floor(Math.random() * 3);
 
-    for (let i = 0; i < layers; i++) {
-        const y = h - 80 - (i * 90);
-        const opt = { friction: 2, density: 0.4, frictionStatic: 15, collisionFilter: { category: OBST_CAT } };
-        World.add(engine.world, [
-            Bodies.rectangle(tx, y, 20, 80, opt),
-            Bodies.rectangle(tx + 90, y, 20, 80, opt),
-            Bodies.rectangle(tx + 45, y - 50, 160, 20, opt)
-        ]);
-        if (i === gemLayer) {
-            targetGem = Bodies.circle(tx + 45, y - 20, 20, { 
-                label: 'gem', collisionFilter: { category: OBST_CAT }, 
-                render: { fillStyle: '#ffd700', strokeStyle: '#fff', lineWidth: 3 } 
-            });
-            World.add(engine.world, targetGem);
+    if (mapStyle === 0) { 
+        // KIỂU 1: Tháp cao 3 tầng (Ngọc ở giữa tầng 2)
+        for (let i = 0; i < 3; i++) {
+            const y = h - 80 - (i * 90);
+            World.add(engine.world, [
+                Bodies.rectangle(tx, y, 20, 80, opt),
+                Bodies.rectangle(tx + 90, y, 20, 80, opt),
+                Bodies.rectangle(tx + 45, y - 55, 160, 20, opt)
+            ]);
+            if (i === 1) { // Ngọc ở tầng giữa
+                targetGem = Bodies.circle(tx + 45, y - 20, 22, { label: 'gem', render: { fillStyle: '#ffd700' } });
+                World.add(engine.world, targetGem);
+            }
         }
+    } else if (mapStyle === 1) {
+        // KIỂU 2: Tháp đôi (Ngọc kẹt giữa hai tháp)
+        const y = h - 80;
+        World.add(engine.world, [
+            Bodies.rectangle(tx - 50, y, 20, 80, opt),
+            Bodies.rectangle(tx + 20, y, 20, 80, opt),
+            Bodies.rectangle(tx + 100, y, 20, 80, opt),
+            Bodies.rectangle(tx + 170, y, 20, 80, opt),
+            Bodies.rectangle(tx - 15, y - 55, 100, 20, opt),
+            Bodies.rectangle(tx + 135, y - 55, 100, 20, opt)
+        ]);
+        targetGem = Bodies.circle(tx + 60, y, 22, { label: 'gem', render: { fillStyle: '#ffd700' } });
+        World.add(engine.world, targetGem);
+    } else {
+        // KIỂU 3: Kim tự tháp đơn giản (Ngọc trên đỉnh cao nhất)
+        const y1 = h - 80;
+        const y2 = y1 - 90;
+        World.add(engine.world, [
+            Bodies.rectangle(tx, y1, 20, 80, opt),
+            Bodies.rectangle(tx + 120, y1, 20, 80, opt),
+            Bodies.rectangle(tx + 60, y1 - 55, 180, 20, opt),
+            Bodies.rectangle(tx + 30, y2, 20, 80, opt),
+            Bodies.rectangle(tx + 90, y2, 20, 80, opt),
+            Bodies.rectangle(tx + 60, y2 - 55, 100, 20, opt)
+        ]);
+        targetGem = Bodies.circle(tx + 60, y2 - 90, 22, { label: 'gem', render: { fillStyle: '#ffd700' } });
+        World.add(engine.world, targetGem);
     }
+
     spawnBird();
 }
-
 function spawnBird() {
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 20, {
         density: 0.05, frictionAir: 0.01, restitution: 0.3,
