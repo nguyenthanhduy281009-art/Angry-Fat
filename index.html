@@ -3,37 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Random Map Edition</title>
+    <title>Angry Fat - Pro Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #1e3799; position: fixed; width: 100%; height: 100%; font-family: sans-serif; }
-        #ui { position: absolute; top: 10px; left: 20px; color: white; pointer-events: none; z-index: 10; text-shadow: 1px 1px 3px #000; }
-        .btn-reset { position: absolute; top: 10px; right: 20px; padding: 10px 20px; background: #ff4757; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; z-index: 100; box-shadow: 0 4px #c0392b; }
-        .btn-reset:active { transform: translateY(2px); box-shadow: 0 2px #c0392b; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #0f0c29; position: fixed; width: 100vw; height: 100vh; font-family: sans-serif; }
+        
+        /* ÉP XOAY NGANG BẰNG CSS */
+        @media screen and (orientation: portrait) {
+            body {
+                width: 100vh; height: 100vw;
+                transform: rotate(90deg);
+                transform-origin: bottom left;
+                position: absolute; top: -100vw; left: 0;
+            }
+        }
+
+        #ui { position: absolute; top: 15px; left: 20px; color: white; pointer-events: none; z-index: 10; text-shadow: 2px 2px 5px #000; }
+        .btn-reset { position: absolute; top: 15px; right: 20px; padding: 12px 20px; background: linear-gradient(#ff4757, #ff6b81); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 100; box-shadow: 0 4px #c0392b; }
         
         #reload-btn { 
-            position: absolute; bottom: 20px; left: 30px; 
-            width: 75px; height: 75px; border: 4px solid #f9ca24; border-radius: 50%; 
-            background: rgba(255,255,255,0.2); display: flex; align-items: center; 
-            justify-content: center; cursor: pointer; z-index: 100; backdrop-filter: blur(5px);
+            position: absolute; bottom: 25px; left: 30px; 
+            width: 80px; height: 80px; border: 4px solid #f9ca24; border-radius: 50%; 
+            background: rgba(255,255,255,0.15); display: flex; align-items: center; 
+            justify-content: center; cursor: pointer; z-index: 100; backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(249, 202, 36, 0.4);
         }
-        #reload-btn img { width: 50px; height: 50px; }
-
-        #rotate-notice {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a1a; color: white; z-index: 9999;
-            flex-direction: column; align-items: center; justify-content: center; text-align: center;
-        }
-        @media screen and (orientation: portrait) { #rotate-notice { display: flex; } }
+        /* Làm hình nhân vật tròn xoe */
+        #reload-btn img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid white; }
     </style>
 </head>
 <body>
 
-    <div id="rotate-notice"><h2>🔄 VUI LÒNG XOAY NGANG</h2></div>
-
     <button class="btn-reset" onclick="initLevel()">LÀM LẠI</button>
-    <div id="ui"><h3>MÀN: <span id="lvl">1</span> | LƯỢT: <span id="birds-left">3</span></h3></div>
+    <div id="ui"><h2>MÀN: <span id="lvl">1</span> | ĐẠN: <span id="birds-left">3</span></h2></div>
     
     <div id="reload-btn" onclick="spawnBird()">
         <img src="https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500">
@@ -43,7 +46,9 @@
 const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Constraint, Events, Composite, Sleeping, Vector } = Matter;
 
 const engine = Engine.create();
-let w = window.innerWidth, h = window.innerHeight;
+// Đảm bảo kích thước chuẩn dù bị xoay CSS
+let w = Math.max(window.innerWidth, window.innerHeight);
+let h = Math.min(window.innerWidth, window.innerHeight);
 
 const render = Render.create({
     element: document.body,
@@ -51,7 +56,7 @@ const render = Render.create({
     options: { 
         width: w, height: h, 
         wireframes: false, 
-        background: 'linear-gradient(to bottom, #4facfe, #00f2fe)',
+        background: 'linear-gradient(to bottom, #243b55, #141e30)',
         pixelRatio: 1 
     }
 });
@@ -59,34 +64,37 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-const BIRD_CAT = 0x0002, OBST_CAT = 0x0004;
+// Danh mục va chạm
+const BIRD_CAT = 0x0002, FLYING_BIRD_CAT = 0x0008, OBST_CAT = 0x0004;
+
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 const charImg = 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500';
-let slingPos = { x: 150, y: h * 0.75 };
+let slingPos = { x: 160, y: h * 0.75 };
 
 const mouse = Mouse.create(render.canvas);
 const mConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
-    constraint: { stiffness: 0.5, render: { visible: false } } // Tăng stiffness để kéo nhạy hơn
+    constraint: { stiffness: 0.6, render: { visible: false } }
 });
+// CHỈ CHO CHẠM KHI CHIM ĐANG Ở TRÊN NÁ (BIRD_CAT)
 mConstraint.collisionFilter.mask = BIRD_CAT;
 render.mouse = mouse;
 World.add(engine.world, mConstraint);
 
-const ground = Bodies.rectangle(w/2, h - 10, w * 5, 25, { isStatic: true, render: { fillStyle: '#2ecc71' } });
+const ground = Bodies.rectangle(w/2, h - 10, w * 5, 20, { isStatic: true, render: { fillStyle: '#1dd1a1' } });
 
 function spawnBird() {
     if (currentBird || shotsUsed >= 3) return;
     
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.1, frictionAir: 0.01,
-        collisionFilter: { category: BIRD_CAT },
-        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 28, {
+        density: 0.12, frictionAir: 0.008,
+        collisionFilter: { category: BIRD_CAT }, // Đang ở chế độ "Cho phép chạm"
+        render: { sprite: { texture: charImg, xScale: 0.28, yScale: 0.28 } }
     });
     
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, stiffness: 0.15, length: 0,
-        render: { strokeStyle: '#f1c40f', lineWidth: 3 }
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.2, length: 0,
+        render: { strokeStyle: '#f1c40f', lineWidth: 4 }
     });
     
     Sleeping.set(currentBird, true);
@@ -95,76 +103,72 @@ function spawnBird() {
 
 function initLevel() {
     Composite.clear(engine.world, true);
-    w = window.innerWidth; h = window.innerHeight;
+    w = Math.max(window.innerWidth, window.innerHeight);
+    h = Math.min(window.innerWidth, window.innerHeight);
     render.canvas.width = w; render.canvas.height = h;
-    slingPos = { x: 150, y: h * 0.75 };
+    slingPos = { x: 160, y: h * 0.75 };
 
     World.add(engine.world, [ground, mConstraint]);
     shotsUsed = 0; currentBird = null;
     document.getElementById('birds-left').innerText = 3;
     document.getElementById('lvl').innerText = level;
 
-    // TẠO THÁP NGẪU NHIÊN
-    const tx = w * 0.75;
+    // RANDOM MAP SIÊU ĐẸP
+    const tx = w * 0.78;
     const baseY = h * 0.5;
-    const opt = { friction: 0.8, density: 0.02, collisionFilter: { category: OBST_CAT } };
+    const opt = { friction: 0.9, density: 0.02, collisionFilter: { category: OBST_CAT } };
     
-    const mapType = Math.floor(Math.random() * 3); // 0, 1, hoặc 2
+    // Bệ đỡ tháp nghệ thuật
+    World.add(engine.world, Bodies.rectangle(tx, baseY + 120, 220, 20, { isStatic: true, render: { fillStyle: '#576574' } }));
 
-    if (mapType === 0) {
-        // Kiểu 1: Tháp cao 3 tầng
+    const r = Math.random();
+    if (r < 0.5) {
+        // Tháp 3 tầng cổ điển
         for(let i=0; i<3; i++) {
-            let y = (baseY + 100) - (i * 95);
+            let y = (baseY + 80) - (i * 90);
             World.add(engine.world, [
-                Bodies.rectangle(tx - 40, y, 15, 90, { ...opt, render: { fillStyle: '#d35400' } }),
-                Bodies.rectangle(tx + 40, y, 15, 90, { ...opt, render: { fillStyle: '#d35400' } }),
-                Bodies.rectangle(tx, y - 50, 130, 15, { ...opt, render: { fillStyle: '#7f8c8d' } })
+                Bodies.rectangle(tx - 45, y, 15, 80, { ...opt, render: { fillStyle: '#ee5253' } }),
+                Bodies.rectangle(tx + 45, y, 15, 80, { ...opt, render: { fillStyle: '#ee5253' } }),
+                Bodies.rectangle(tx, y - 45, 140, 15, { ...opt, render: { fillStyle: '#c8d6e5' } })
             ]);
-            if(i === 2) targetGem = createGem(tx, y - 80);
+            if(i === 2) targetGem = createGem(tx, y - 85);
         }
-    } else if (mapType === 1) {
-        // Kiểu 2: Hai cột song song lơ lửng
-        World.add(engine.world, Bodies.rectangle(tx, baseY + 120, 250, 20, { isStatic: true, render: { fillStyle: '#2c3e50' } }));
-        for(let j=0; j<2; j++) {
-            let offset = j === 0 ? -60 : 60;
-            World.add(engine.world, Bodies.rectangle(tx + offset, baseY + 50, 20, 120, opt));
-        }
-        World.add(engine.world, Bodies.rectangle(tx, baseY - 20, 180, 20, opt));
-        targetGem = createGem(tx, baseY - 50);
     } else {
-        // Kiểu 3: Kim tự tháp gỗ
+        // Cấu trúc lâu đài mở rộng
         World.add(engine.world, [
-            Bodies.rectangle(tx - 60, baseY + 80, 20, 100, opt),
-            Bodies.rectangle(tx + 60, baseY + 80, 20, 100, opt),
-            Bodies.rectangle(tx, baseY + 80, 20, 100, opt),
-            Bodies.rectangle(tx, baseY + 20, 160, 20, opt),
-            Bodies.rectangle(tx - 30, baseY - 30, 20, 80, opt),
-            Bodies.rectangle(tx + 30, baseY - 30, 20, 80, opt),
-            Bodies.rectangle(tx, baseY - 80, 100, 20, opt)
+            Bodies.rectangle(tx - 70, baseY + 60, 20, 100, opt),
+            Bodies.rectangle(tx + 70, baseY + 60, 20, 100, opt),
+            Bodies.rectangle(tx, baseY + 60, 20, 100, opt),
+            Bodies.rectangle(tx, baseY, 180, 20, opt),
+            Bodies.rectangle(tx - 35, baseY - 50, 15, 80, opt),
+            Bodies.rectangle(tx + 35, baseY - 50, 15, 80, opt),
+            Bodies.rectangle(tx, baseY - 90, 100, 15, opt)
         ]);
-        targetGem = createGem(tx, baseY - 110);
+        targetGem = createGem(tx, baseY - 120);
     }
 }
 
 function createGem(x, y) {
-    const gem = Bodies.circle(x, y, 20, { 
+    const gem = Bodies.circle(x, y, 22, { 
         label: 'gem', collisionFilter: { category: OBST_CAT },
-        render: { fillStyle: '#f1c40f', strokeStyle: '#fff', lineWidth: 2 } 
+        render: { fillStyle: '#feca57', strokeStyle: '#fff', lineWidth: 3 } 
     });
-    World.add(engine.world, gem);
-    return gem;
+    World.add(engine.world, gem); return gem;
 }
 
 Events.on(mConstraint, 'startdrag', (e) => { if (e.body === currentBird) Sleeping.set(currentBird, false); });
+
 Events.on(mConstraint, 'enddrag', (e) => { 
     if (e.body === currentBird) {
-        const dist = Vector.magnitude(Vector.sub(currentBird.position, slingPos));
-        if (dist > 25) { // Chỉ bắn khi kéo đủ xa
+        if (Vector.magnitude(Vector.sub(currentBird.position, slingPos)) > 25) {
+            // SAU KHI BẮN: Đổi Category để chuột không thể bắt được nữa
+            currentBird.collisionFilter.category = FLYING_BIRD_CAT; 
+            
             setTimeout(() => { 
                 if(sling) World.remove(engine.world, sling); 
                 sling = null; 
-                currentBird = null; // Giải phóng để có thể nạp viên tiếp theo
-            }, 30); // Giảm thời gian chờ để giải phóng nhanh hơn, tránh dính
+                currentBird = null; 
+            }, 20);
             shotsUsed++;
             document.getElementById('birds-left').innerText = 3 - shotsUsed;
         }
