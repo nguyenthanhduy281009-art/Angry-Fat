@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Angry Fat - Perfect Circle</title>
+    <title>Angry Fat - Final Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 0; overflow: hidden; background: #0f0c29; position: fixed; width: 100vw; height: 100vh; font-family: sans-serif; }
         
-        /* ÉP XOAY NGANG MÀN HÌNH */
         @media screen and (orientation: portrait) {
             body {
                 width: 100vh; height: 100vw;
@@ -21,7 +20,6 @@
         #ui { position: absolute; top: 15px; left: 20px; color: white; pointer-events: none; z-index: 10; text-shadow: 2px 2px 5px #000; }
         .btn-reset { position: absolute; top: 15px; right: 20px; padding: 12px 20px; background: #ff4757; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; z-index: 100; }
         
-        /* Nút nạp đạn hình tròn */
         #reload-btn { 
             position: absolute; bottom: 25px; left: 30px; 
             width: 80px; height: 80px; border: 4px solid #f9ca24; border-radius: 50%; 
@@ -38,7 +36,7 @@
     <div id="ui"><h2>MÀN: <span id="lvl">1</span> | ĐẠN: <span id="birds-left">3</span></h2></div>
     
     <div id="reload-btn" onclick="spawnBird()">
-        <img src="https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500" alt="Reload">
+        <img src="https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w500">
     </div>
 
     <canvas id="bufferCanvas" style="display:none;"></canvas>
@@ -59,12 +57,12 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-const BIRD_CAT = 0x0002, FLYING_CAT = 0x0008, OBST_CAT = 0x0004;
+const BIRD_CAT = 0x0002, FLYING_CAT = 0x0008, OBST_CAT = 0x0004, GROUND_CAT = 0x0001;
 let level = 1, shotsUsed = 0, currentBird = null, sling = null, targetGem = null;
 let slingPos = { x: 160, y: h * 0.75 };
 let circularBirdTexture = '';
 
-// Hàm xử lý bo tròn ảnh nhân vật
+// Bo tròn ảnh nhân vật
 function createCircularTexture(url) {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -78,6 +76,7 @@ function createCircularTexture(url) {
         ctx.clip();
         ctx.drawImage(img, 0, 0, size, size);
         circularBirdTexture = canvas.toDataURL();
+        spawnBird();
     };
     img.src = url;
 }
@@ -92,7 +91,12 @@ mConstraint.collisionFilter.mask = BIRD_CAT;
 render.mouse = mouse;
 World.add(engine.world, mConstraint);
 
-const ground = Bodies.rectangle(w/2, h - 15, w * 5, 30, { isStatic: true, render: { fillStyle: '#2ed573' } });
+const ground = Bodies.rectangle(w/2, h - 10, w * 5, 40, { 
+    isStatic: true, 
+    label: 'ground',
+    collisionFilter: { category: GROUND_CAT },
+    render: { fillStyle: '#2ed573' } 
+});
 
 function spawnBird() {
     if (currentBird || shotsUsed >= 3 || !circularBirdTexture) return;
@@ -124,24 +128,23 @@ function initLevel() {
     const groundY = h - 30;
     const opt = { friction: 1, density: 0.05, collisionFilter: { category: OBST_CAT } };
     
-    // TẠO THÁP DƯỚI ĐẤT NGẪU NHIÊN
+    // Tháp ngẫu nhiên đặt dưới đất
     const type = Math.floor(Math.random() * 2);
     if (type === 0) {
         for(let i=0; i<3; i++) {
             let y = groundY - 40 - (i * 95);
             World.add(engine.world, [
-                Bodies.rectangle(tx - 45, y, 20, 80, { ...opt, render: { fillStyle: '#d35400' } }),
-                Bodies.rectangle(tx + 45, y, 20, 80, { ...opt, render: { fillStyle: '#d35400' } }),
+                Bodies.rectangle(tx - 45, y, 20, 85, { ...opt, render: { fillStyle: '#d35400' } }),
+                Bodies.rectangle(tx + 45, y, 20, 85, { ...opt, render: { fillStyle: '#d35400' } }),
                 Bodies.rectangle(tx, y - 45, 150, 20, { ...opt, render: { fillStyle: '#7f8c8d' } })
             ]);
             if(i === 2) targetGem = createGem(tx, y - 90);
         }
     } else {
         World.add(engine.world, [
-            Bodies.rectangle(tx - 70, groundY - 50, 30, 100, opt),
-            Bodies.rectangle(tx + 70, groundY - 50, 30, 100, opt),
-            Bodies.rectangle(tx, groundY - 50, 30, 100, opt),
-            Bodies.rectangle(tx, groundY - 110, 200, 25, opt),
+            Bodies.rectangle(tx - 60, groundY - 50, 30, 100, opt),
+            Bodies.rectangle(tx + 60, groundY - 50, 30, 100, opt),
+            Bodies.rectangle(tx, groundY - 110, 180, 25, opt),
             targetGem = createGem(tx, groundY - 150)
         ]);
     }
@@ -149,10 +152,12 @@ function initLevel() {
 
 function createGem(x, y) {
     const gem = Bodies.circle(x, y, 22, { 
-        label: 'gem', collisionFilter: { category: OBST_CAT },
+        label: 'gem', 
+        collisionFilter: { category: OBST_CAT },
         render: { fillStyle: '#feca57', strokeStyle: '#fff', lineWidth: 3 } 
     });
-    World.add(engine.world, gem); return gem;
+    World.add(engine.world, gem); 
+    return gem;
 }
 
 Events.on(mConstraint, 'startdrag', (e) => { if (e.body === currentBird) Sleeping.set(currentBird, false); });
@@ -167,9 +172,18 @@ Events.on(mConstraint, 'enddrag', (e) => {
     }
 });
 
+// Kiểm tra qua màn
 Events.on(engine, 'afterUpdate', () => {
-    if (targetGem && (targetGem.position.y > h - 50 || targetGem.position.x > w || targetGem.position.x < 0)) {
-        targetGem = null; level++; 
+    if (!targetGem) return;
+
+    // Cách 1: Chạm đất (tọa độ y)
+    const isOnGround = targetGem.position.y > h - 70;
+    // Cách 2: Văng khỏi màn hình
+    const isOut = targetGem.position.x > w || targetGem.position.x < 0;
+
+    if (isOnGround || isOut) {
+        targetGem = null;
+        level++;
         setTimeout(initLevel, 1000);
     }
 });
