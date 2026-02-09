@@ -1,4 +1,4 @@
-    `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -73,10 +73,10 @@ const ground = Bodies.rectangle(w/2, h - groundHeight/2, w * 5, groundHeight, {
 
 function spawnBird() {
     if (currentBird || shotsUsed >= 3) return;
-    currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.1, frictionAir: 0.08,
+    currentBird = Bodies.circle(slingPos.x, slingPos.y, 15, {
+        density: 0.1, frictionAir: 0.02,
         collisionFilter: { category: BIRD_CAT },
-        render: { sprite: { texture: charImg, xScale: 0.2, yScale: 0.2 } }
+        render: { sprite: { texture: charImg, xScale: 0.12, yScale: 0.12 } }
     });
     sling = Constraint.create({
         pointA: slingPos, bodyB: currentBird, stiffness: 0.3, length: 0,
