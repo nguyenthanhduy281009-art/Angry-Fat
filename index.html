@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    `<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -74,12 +74,12 @@ const ground = Bodies.rectangle(w/2, h - groundHeight/2, w * 5, groundHeight, {
 function spawnBird() {
     if (currentBird || shotsUsed >= 3) return;
     currentBird = Bodies.circle(slingPos.x, slingPos.y, 25, {
-        density: 0.1, frictionAir: 0.01,
+        density: 0.1, frictionAir: 0.08,
         collisionFilter: { category: BIRD_CAT },
-        render: { sprite: { texture: charImg, xScale: 0.25, yScale: 0.25 } }
+        render: { sprite: { texture: charImg, xScale: 0.2, yScale: 0.2 } }
     });
     sling = Constraint.create({
-        pointA: slingPos, bodyB: currentBird, stiffness: 0.15, length: 0,
+        pointA: slingPos, bodyB: currentBird, stiffness: 0.3, length: 0,
         render: { strokeStyle: '#f1c40f', lineWidth: 3 }
     });
     Sleeping.set(currentBird, false);
@@ -99,7 +99,7 @@ function initLevel() {
 
     const tx = w * 0.75;
     const floorY = h - groundHeight; 
-    const opt = { friction: 0.8, density: 0.02, collisionFilter: { category: OBST_CAT } };
+    const opt = { friction: 2, density: 0.1, collisionFilter: { category: OBST_CAT } };
     
     const mapType = Math.floor(Math.random() * 3);
 
